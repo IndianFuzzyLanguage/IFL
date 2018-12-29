@@ -24,15 +24,15 @@ typedef struct ifl_msg_st {
     uint32_t fuzzed_id;
 }IFL_MSG;
 
-IFL *IFL_init(const char *xml_file_name, const char *xml_content);
+IFL *IFL_Init(const char *xml_file_name, const char *xml_content);
 
-void IFL_fini(IFL *ifl);
+void IFL_Fini(IFL *ifl);
 
-IFL_MSG *IFL_getFuzzedMsg(IFL *ifl);
+IFL_MSG *IFL_GetFuzzedMsg(IFL *ifl);
 
-void IFL_freeFuzzedMsg(IFL_MSG *ifl_msg);
+void IFL_FreeFuzzedMsg(IFL_MSG *ifl_msg);
 
-IFL *IFL_ctrl(IFL *ifl, uint32_t cmd, void *data, uint16_t data_len);
+IFL *IFL_Ctrl(IFL *ifl, uint32_t cmd, void *data, uint16_t data_len);
 
 #ifdef __cplusplus
 }

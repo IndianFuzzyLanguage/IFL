@@ -1,7 +1,8 @@
 #include "ifl_types.h"
 #include "ifl_log.h"
+#include "ifl_conf_parser.h"
 
-IFL *IFL_init(const char *xml_file_name, const char *xml_content)
+IFL *IFL_Init(const char *xml_file_name, const char *xml_content)
 {
     IFL *ifl;
 
@@ -12,20 +13,21 @@ IFL *IFL_init(const char *xml_file_name, const char *xml_content)
     }
 
     DBG("IFL init succeeded\n");
+    IFL_ParseConf(xml_file_name, xml_content);
     return ifl;
 err:
-    IFL_fini(ifl);
+    IFL_Fini(ifl);
     return NULL;
 }
 
-void IFL_fini(IFL *ifl)
+void IFL_Fini(IFL *ifl)
 {
     if (ifl) {
         free(ifl);
     }
 }
 
-IFL_MSG *IFL_getFuzzedMsg(IFL *ifl)
+IFL_MSG *IFL_GetFuzzedMsg(IFL *ifl)
 {
     IFL_MSG *ifl_msg;
 
@@ -42,14 +44,14 @@ err:
     return NULL;
 }
 
-void IFL_freeFuzzedMsg(IFL_MSG *ifl_msg)
+void IFL_FreeFuzzedMsg(IFL_MSG *ifl_msg)
 {
     if (ifl_msg) {
         free(ifl_msg);
     }
 }
 
-IFL *IFL_ctrl(IFL *ifl, uint32_t cmd, void *data, uint16_t data_len)
+IFL *IFL_Ctrl(IFL *ifl, uint32_t cmd, void *data, uint16_t data_len)
 {
     return 0;
 }

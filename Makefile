@@ -11,10 +11,11 @@ CC = gcc
 AR = ar
 RM = rm
 
+EXPAT_DIR=dependency/libexpat
 CFLAGS = -g -ggdb -O0 -Wall -Werror
 LFLAGS = 
 
-INC = -I ./src -I ./include
+INC = -I ./src -I ./include -I $(EXPAT_DIR)/expat/lib
 CFLAGS += $(INC)
 
 .PHONY: all clean init_setup
@@ -24,13 +25,13 @@ all: init_setup $(TARGET)
 init_setup:
 	@mkdir -p $(OBJ_DIR)/$(SRC_DIR)
 	@mkdir -p $(BIN_DIR)
-	@echo "objs are $(OBJS)"
+	@cp $(EXPAT_DIR)/expat/lib/.libs/libexpat.a $(BIN_DIR)/.
 
 $(OBJ_DIR)/%.o:%.c
 	$(CC) $(CFLAGS) -o $@ -c $^
 
 $(STATIC_LIB): $(OBJS)
-	$(AR) r $@ $<
+	$(AR) r $@ $^
 
 clean:
 	@$(RM) -rf $(OBJS)
