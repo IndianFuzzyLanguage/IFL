@@ -3,36 +3,72 @@
 
 #include "ifl_types.h"
 #include "ifl_conf_parser.h"
+#include "ifl_msg_format.h"
 #include "ifl_log.h"
 
 #include "expat.h"
 
 #define BUF_SIZE_FOR_XML_READING 1024
+#define MAX_ELEMENT_SIZE 256
 
 int g_depth = 0;
-void XMLCALL start(void *data, const XML_Char *el, const XML_Char **attr)
+
+char *get_element_str(char *out, uint16_t out_len, const XML_Char *el, const XML_Char **attr)
 {
+    int idx;
+    int ret;
+    int i;
+    ret = snprintf(out, out_len, "%s", el);
+    if ((ret < 0) || (ret >= out_len)) {
+        ERR("snprintf failed for tag[%s]\n", el);
+        ret = 0;
+    }
+    idx = ret;
+    for (i = 0; attr[i]; i += 2) {
+        ret = snprintf(out + idx, out_len - idx, "%s", el);
+        if ((ret < 0) || (ret >= out_len)) {
+            ERR("snprintf failed for attr[%s=%s]\n", attr[i], attr[i + 1]);
+            ret = 0;
+        }
+        idx += ret;
+    }
+    return out;
+}
+
+void XMLCALL start_handler(void *data, const XML_Char *el, const XML_Char **attr)
+{
+    char element[MAX_ELEMENT_SIZE] = {0};
+    IFL_MSG_FMT_CREATOR *app_data = (IFL_MSG_FMT_CREATOR *)data;
     int i;
 
     for (i = 0; i < g_depth; i++) {
         printf("  ");
     }
 
-    printf("%s", el);
-    if (data) {
-        printf("=%s", (char *)data);
+    if (app_data) {
+        if (IFL_MsgFieldStart(app_data, el, attr)) {
+            ERR("Failed field [%s]\n", get_element_str(element, sizeof(element), el, attr));
+        }
     }
+    /*printf("%s", el);
     for (i = 0; attr[i]; i += 2) {
         printf(" %s=%s", attr[i], attr[i + 1]);
-    }
-    printf("\n");
+    }*/
+    printf("%s\n", get_element_str(element, sizeof(element), el, attr));
+    //printf("\n");
     g_depth++;
 }
 
-void XMLCALL end(void *data, const XML_Char *el)
+void XMLCALL end_handler(void *data, const XML_Char *el)
 {
+    IFL_MSG_FMT_CREATOR *app_data = (IFL_MSG_FMT_CREATOR *)data;
     (void)data;
     (void)el;
+    if (app_data) {
+        if (IFL_MsgFieldEnd(app_data, el)) {
+            ERR("End Field update failed\n");
+        }
+    }
     g_depth--;
 }
 
@@ -70,10 +106,11 @@ void XMLCALL data_handler(void *data, const XML_Char *buf, int len)
     }
 }
 
-void IFL_ParseConf(const char *xml_file_name, const char *xml_content)
+IFL_MSG_FIELD *IFL_ParseConf(const char *xml_file_name, const char *xml_content)
 {
     char buf[BUF_SIZE_FOR_XML_READING] = {0};
     XML_Parser xparser;
+    IFL_MSG_FMT_CREATOR app_data = {0};
     FILE *xml_file;
     int done;
     int len;
@@ -94,8 +131,9 @@ void IFL_ParseConf(const char *xml_file_name, const char *xml_content)
         goto err;
     }
 
-    XML_SetElementHandler(xparser, start, end);
+    XML_SetElementHandler(xparser, start_handler, end_handler);
     XML_SetCharacterDataHandler(xparser, data_handler);
+    XML_SetUserData(xparser, &app_data);
 
     do {
         len = (int)fread(buf, 1, sizeof(buf) - 1, xml_file);
@@ -110,7 +148,8 @@ void IFL_ParseConf(const char *xml_file_name, const char *xml_content)
         }
     } while (!done);
     XML_ParserFree(xparser);
+    return app_data.head;
 err:
-    return;
+    return NULL;
 }
 

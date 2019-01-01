@@ -1,19 +1,24 @@
 #include "ifl_types.h"
 #include "ifl_log.h"
 #include "ifl_conf_parser.h"
+#include "ifl_msg_format.h"
+#include "ifl_util.h"
 
 IFL *IFL_Init(const char *xml_file_name, const char *xml_content)
 {
     IFL *ifl;
 
     ifl = calloc(1, sizeof(IFL));
-    if (!ifl) {
+    IFL_CHK_ERR((!ifl), "Mem alloc failed", goto err);
+    /*if (!ifl) {
         ERR("Mem alloc failed\n");
         goto err;
+    }*/
+    if (!(ifl->msg_format = IFL_ParseConf(xml_file_name, xml_content))) {
+        ERR("Parse Conf Failed\n");
+        goto err;
     }
-
     DBG("IFL init succeeded\n");
-    IFL_ParseConf(xml_file_name, xml_content);
     return ifl;
 err:
     IFL_Fini(ifl);
@@ -23,6 +28,7 @@ err:
 void IFL_Fini(IFL *ifl)
 {
     if (ifl) {
+        IFL_FreeMsgFormat(ifl->msg_format);
         free(ifl);
     }
 }
