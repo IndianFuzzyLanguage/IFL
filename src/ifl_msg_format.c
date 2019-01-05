@@ -79,13 +79,13 @@ int IFL_ParseFieldAttr(IFL_MSG_FIELD *field, const char **attr)
 int IFL_MsgFieldStart(IFL_MSG_FMT_CREATOR *fmt_creator, const char *el, const char **attr)
 {
     IFL_MSG_FIELD *new_field = NULL;
-    IFL_MSG_FIELD *child;
+    IFL_MSG_FIELD *first_child;
 
     if (!el) {
         ERR("Element name is NULL\n");
         return -1;
     }
-    TRACE("Msg Element %s\n", el);
+    TRACE("Start Element=%s\n", el);
     if (isFieldElement(el)) {
         if (!attr) {
             ERR("Attribute is NULL for FieldElement\n");
@@ -107,29 +107,45 @@ int IFL_MsgFieldStart(IFL_MSG_FMT_CREATOR *fmt_creator, const char *el, const ch
             ERR("Receiving new Field Element after completing root tag\n");
             goto err;
         } else if (!fmt_creator->cur->tree.child) {
+            /* First child */
+            /* Update Tree states */
+            /* - Update parent node's child */
+            /* - Update child node's parent */
+            /* - Keep child node as current node */
             fmt_creator->cur->tree.child = new_field;
             new_field->tree.parent = fmt_creator->cur;
             fmt_creator->cur = new_field;
+            /* Update List states */
             new_field->list.previous = new_field->list.next = new_field;
         } else {
-            child = fmt_creator->cur->tree.child;
-            new_field->list.next = child;
-            new_field->list.previous = child->list.previous;
-            child->list.previous->list.next = new_field;
-            child->list.previous = new_field;
+            /* Not a first child */
+            /* Update Tree states */
+            /* - No need to update parent node's child */
+            /* - Update child node's parent */
+            /* - Keep child node as current node */
+            new_field->tree.parent = fmt_creator->cur;
+            fmt_creator->cur = new_field;
+            /* Update List states */
+            /* - Get First child and update list states */
+            first_child = fmt_creator->cur->tree.parent->tree.child;
+            new_field->list.next = first_child;
+            new_field->list.previous = first_child->list.previous;
+            first_child->list.previous->list.next = new_field;
+            first_child->list.previous = new_field;
         }
         new_field = NULL;
     }
 
+    TRACE("Msg Field head=%p, cur=%p\n", fmt_creator->head, fmt_creator->cur);
     return 0;
 err:
     IFL_FreeMsgField(new_field);
     return -1;
 }
 
-
 int IFL_MsgFieldEnd(IFL_MSG_FMT_CREATOR *fmt_creator, const char *el)
 {
+    TRACE("End Element=%s\n", el);
     if (isFieldElement(el)) {
         if (fmt_creator->cur) {
             fmt_creator->cur = fmt_creator->cur->tree.parent;
@@ -139,5 +155,6 @@ int IFL_MsgFieldEnd(IFL_MSG_FMT_CREATOR *fmt_creator, const char *el)
         }
     }
     
+    TRACE("Msg Field head=%p, cur=%p\n", fmt_creator->head, fmt_creator->cur);
     return 0;
 }
