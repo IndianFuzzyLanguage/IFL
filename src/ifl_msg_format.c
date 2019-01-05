@@ -15,13 +15,69 @@
 #define FIELD_ATTR_TYPE "type"
 #define FIELD_ATTR_SIZE "size"
 
+int IFL_PushFieldStack(IFL_MSG_FIELD **field_stack, uint16_t stack_size, uint16_t *stack_idx, IFL_MSG_FIELD *data)
+{
+    if (*stack_idx == stack_size) {
+        ERR("Field stack is full");
+        return -1;
+    }
+    field_stack[*stack_idx] = data;
+    *stack_idx += 1;
+    return 0;
+}
+
+IFL_MSG_FIELD *IFL_PopFieldStack(IFL_MSG_FIELD **field_stack, uint16_t *stack_idx)
+{
+    IFL_MSG_FIELD *ret = NULL;
+    if (*stack_idx) {
+        *stack_idx -= 1;
+        ret = field_stack[*stack_idx];
+    }
+    return ret;
+}
+
 void IFL_LogMsgFormat(IFL_MSG_FIELD *msg, uint8_t log_level)
 {
     IFL_MSG_FIELD *cur = msg;
-    while (cur) {
-        LOG(log_level, "Cur=%p, id=%d, depth=%d", cur, cur->field.id, cur->depth);
-        cur = cur->tree.child;
+    IFL_MSG_FIELD **field_stack;
+    uint16_t field_stack_idx = 0;
+    IFL_MSG_FIELD *prev;
+    IFL_MSG_FIELD *prev_parent;
+
+    LOG(log_level, "Msg tree with max depth=%u", msg->depth);
+    field_stack = (IFL_MSG_FIELD **)calloc((msg->depth + 1), sizeof(IFL_MSG_FIELD *));
+    if (!field_stack) {
+        ERR("Field stack alloc of size %u failed", msg->depth + 1);
+        return;
     }
+    while (cur) {
+        LOG(log_level, "Cur=%p, id=%d, name=%s, depth=%d",
+                cur, cur->field.id, cur->field.name, cur->depth);
+        if (IFL_PushFieldStack(field_stack, msg->depth + 1, &field_stack_idx, cur)) {
+            ERR("Field stack push failed\n");
+            break;
+        }
+        if (cur->tree.child) {
+            cur = cur->tree.child;
+        } else {
+            cur = NULL;
+            do {
+                prev = IFL_PopFieldStack(field_stack, &field_stack_idx);
+                prev_parent = prev ? prev->tree.parent : NULL;
+                if ((!prev) || (!prev_parent)) {
+                    break;
+                }
+                /* Check if it has some more siblings */
+                /* If so keep that as cur or else go back to next parent */
+                if (prev->list.next != prev_parent->tree.child) {
+                    /* A node's parent's child is the first node on doubly list */
+                    /* If current node's next != first node then its new sibling */
+                    cur = prev->list.next;
+                }
+            } while(!cur);
+        }
+    }
+    free(field_stack);
 }
 
 int isFieldElement(const char *el)
@@ -109,7 +165,6 @@ int IFL_MsgFieldStart(IFL_MSG_FMT_CREATOR *fmt_creator, const char *el, const ch
             ERR("Parsing Attr for element=%s failed", el);
             goto err;
         }
-        new_field->depth = (fmt_creator->cur) ? fmt_creator->cur->depth + 1 : 0;
         if (!fmt_creator->head) {
             fmt_creator->head = new_field;
             fmt_creator->cur = new_field;
@@ -154,12 +209,26 @@ err:
     return -1;
 }
 
+void IFL_UpdateTreeReverseDepth(IFL_MSG_FIELD *child, IFL_MSG_FIELD *parent)
+{
+    if (child && parent) {
+        if (parent->depth < (child->depth + 1)) {
+            parent->depth = child->depth + 1;
+        }
+    }
+}
+
 int IFL_MsgFieldEnd(IFL_MSG_FMT_CREATOR *fmt_creator, const char *el)
 {
     TRACE("End Element=%s", el);
     if (isFieldElement(el)) {
         if (fmt_creator->cur) {
+            IFL_UpdateTreeReverseDepth(fmt_creator->cur, fmt_creator->cur->tree.parent);
             fmt_creator->cur = fmt_creator->cur->tree.parent;
+            if ((fmt_creator->cur) && (fmt_creator->cur->depth > IFL_MAX_MSG_FIELD_DEPTH)) {
+                ERR("Crossed max field depth=%u", fmt_creator->cur->depth);
+                return -1;
+            }
         } else {
             ERR("Abnormal state, Cur=%p, element=%s", fmt_creator->cur, el);
             return -1;

@@ -7,6 +7,8 @@ extern "C" {
 
 #include "ifl.h"
 
+#define IFL_MAX_MSG_FIELD_DEPTH     16000
+
 typedef struct ifl_msg_field_st IFL_MSG_FIELD;
 
 struct ifl_st {
