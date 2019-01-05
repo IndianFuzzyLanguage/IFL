@@ -57,8 +57,11 @@ void IFL_FreeFuzzedMsg(IFL_MSG *ifl_msg)
     }
 }
 
-IFL *IFL_Ctrl(IFL *ifl, uint32_t cmd, void *data, uint16_t data_len)
+int IFL_Ctrl(IFL *ifl, uint32_t cmd, void *data, uint16_t data_len)
 {
+    if (!ifl) {
+        return -1;
+    }
     return 0;
 }
 

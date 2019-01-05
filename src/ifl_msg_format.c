@@ -85,6 +85,7 @@ int IFL_MsgFieldStart(IFL_MSG_FMT_CREATOR *fmt_creator, const char *el, const ch
         ERR("Element name is NULL\n");
         return -1;
     }
+    TRACE("Msg Element %s\n", el);
     if (isFieldElement(el)) {
         if (!attr) {
             ERR("Attribute is NULL for FieldElement\n");
