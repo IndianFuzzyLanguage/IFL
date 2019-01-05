@@ -15,6 +15,15 @@
 #define FIELD_ATTR_TYPE "type"
 #define FIELD_ATTR_SIZE "size"
 
+void IFL_LogMsgFormat(IFL_MSG_FIELD *msg, uint8_t log_level)
+{
+    IFL_MSG_FIELD *cur = msg;
+    while(cur) {
+        LOG(log_level, "Cur=%p, id=%d", cur, cur->field.id);
+        cur = cur->tree.child;
+    }
+}
+
 int isFieldElement(const char *el)
 {
     return (strcmp(el, FIELD_ELEMENT) ? 0 : 1);
@@ -56,18 +65,18 @@ int IFL_ParseFieldAttr(IFL_MSG_FIELD *field, const char **attr)
             field->field.id = atoi(attr_val);
         } else if (!strcmp(attr_name, FIELD_ATTR_NAME)) {
             if (strlen(attr_val) >= sizeof(field->field.name)) {
-                ERR("Insufficient memory for Name Attr len=%zu\n", strlen(attr_val));
+                ERR("Insufficient memory for Name Attr len=%zu", strlen(attr_val));
                 return -1;
             }
             strcpy(field->field.name, attr_val);
         } else if (!strcmp(attr_name, FIELD_ATTR_TYPE)) {
             if (IFL_ParseFieldAttrType(field, attr_val)) {
-                ERR("Unsupported Type Attr val=%s\n", attr_val);
+                ERR("Unsupported Type Attr val=%s", attr_val);
                 return -1;
             }
         } else if (!strcmp(attr_name, FIELD_ATTR_SIZE)) {
             if (atoi(attr_val) < 0) {
-                ERR("Received invalid field size=%d\n", atoi(attr_val));
+                ERR("Received invalid field size=%d", atoi(attr_val));
                 return -1;
             }
             field->field.size = (uint16_t)(atoi(attr_val));
@@ -82,29 +91,29 @@ int IFL_MsgFieldStart(IFL_MSG_FMT_CREATOR *fmt_creator, const char *el, const ch
     IFL_MSG_FIELD *first_child;
 
     if (!el) {
-        ERR("Element name is NULL\n");
+        ERR("Element name is NULL");
         return -1;
     }
-    TRACE("Start Element=%s\n", el);
+    TRACE("Start Element=%s", el);
     if (isFieldElement(el)) {
         if (!attr) {
-            ERR("Attribute is NULL for FieldElement\n");
+            ERR("Attribute is NULL for FieldElement");
             goto err;
         }
         new_field = IFL_AllocMsgField();
         if (!new_field) {
-            ERR("New IFL_MSG_FIELD alloc failed for field %s\n", el);
+            ERR("New IFL_MSG_FIELD alloc failed for field %s", el);
             goto err;
         }
         if (IFL_ParseFieldAttr(new_field, attr)) {
-            ERR("Parsing Attr for element=%s failed\n", el);
+            ERR("Parsing Attr for element=%s failed", el);
             goto err;
         }
         if (!fmt_creator->head) {
             fmt_creator->head = new_field;
             fmt_creator->cur = new_field;
         } else if (!fmt_creator->cur) {
-            ERR("Receiving new Field Element after completing root tag\n");
+            ERR("Receiving new Field Element after completing root tag");
             goto err;
         } else if (!fmt_creator->cur->tree.child) {
             /* First child */
@@ -136,7 +145,7 @@ int IFL_MsgFieldStart(IFL_MSG_FMT_CREATOR *fmt_creator, const char *el, const ch
         new_field = NULL;
     }
 
-    TRACE("Msg Field head=%p, cur=%p\n", fmt_creator->head, fmt_creator->cur);
+    TRACE("Msg Field head=%p, cur=%p", fmt_creator->head, fmt_creator->cur);
     return 0;
 err:
     IFL_FreeMsgField(new_field);
@@ -145,16 +154,17 @@ err:
 
 int IFL_MsgFieldEnd(IFL_MSG_FMT_CREATOR *fmt_creator, const char *el)
 {
-    TRACE("End Element=%s\n", el);
+    TRACE("End Element=%s", el);
     if (isFieldElement(el)) {
         if (fmt_creator->cur) {
             fmt_creator->cur = fmt_creator->cur->tree.parent;
         } else {
-            ERR("Abnormal state, Cur=%p, element=%s\n", fmt_creator->cur, el);
+            ERR("Abnormal state, Cur=%p, element=%s", fmt_creator->cur, el);
             return -1;
         }
     }
     
-    TRACE("Msg Field head=%p, cur=%p\n", fmt_creator->head, fmt_creator->cur);
+    TRACE("Msg Field head=%p, cur=%p", fmt_creator->head, fmt_creator->cur);
     return 0;
 }
+

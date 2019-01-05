@@ -20,14 +20,14 @@ char *get_element_str(char *out, uint16_t out_len, const XML_Char *el, const XML
     int i;
     ret = snprintf(out, out_len, "%s", el);
     if ((ret < 0) || (ret >= out_len)) {
-        ERR("snprintf failed for tag[%s]\n", el);
+        ERR("snprintf failed for tag[%s]", el);
         ret = 0;
     }
     idx = ret;
     for (i = 0; attr[i]; i += 2) {
         ret = snprintf(out + idx, out_len - idx, "%s", el);
         if ((ret < 0) || (ret >= out_len)) {
-            ERR("snprintf failed for attr[%s=%s]\n", attr[i], attr[i + 1]);
+            ERR("snprintf failed for attr[%s=%s]", attr[i], attr[i + 1]);
             ret = 0;
         }
         idx += ret;
@@ -47,7 +47,7 @@ void XMLCALL start_handler(void *data, const XML_Char *el, const XML_Char **attr
 
     if (app_data) {
         if (IFL_MsgFieldStart(app_data, el, attr)) {
-            ERR("Failed field [%s]\n", get_element_str(element, sizeof(element), el, attr));
+            ERR("Failed field [%s]", get_element_str(element, sizeof(element), el, attr));
         }
     }
     /*printf("%s", el);
@@ -55,7 +55,7 @@ void XMLCALL start_handler(void *data, const XML_Char *el, const XML_Char **attr
         printf(" %s=%s", attr[i], attr[i + 1]);
     }*/
     printf("%s\n", get_element_str(element, sizeof(element), el, attr));
-    //printf("\n");
+    //printf("");
     g_depth++;
 }
 
@@ -66,7 +66,7 @@ void XMLCALL end_handler(void *data, const XML_Char *el)
     (void)el;
     if (app_data) {
         if (IFL_MsgFieldEnd(app_data, el)) {
-            ERR("End Field update failed\n");
+            ERR("End Field update failed");
         }
     }
     g_depth--;
@@ -116,18 +116,18 @@ IFL_MSG_FIELD *IFL_ParseConf(const char *xml_file_name, const char *xml_content)
     int len;
 
     if (!xml_file_name) {
-        ERR("No XML file\n");
+        ERR("No XML file");
         goto err;
     }
     xml_file = fopen(xml_file_name, "r");
     if (!xml_file) {
-        ERR("XML File open failed\n");
+        ERR("XML File open failed");
         goto err;
     }
 
     xparser = XML_ParserCreate(NULL);
     if (!xparser) {
-        ERR("XML Parser creation failed\n");
+        ERR("XML Parser creation failed");
         goto err;
     }
 
@@ -138,12 +138,12 @@ IFL_MSG_FIELD *IFL_ParseConf(const char *xml_file_name, const char *xml_content)
     do {
         len = (int)fread(buf, 1, sizeof(buf) - 1, xml_file);
         if (len <= 0) {
-            ERR("fread ret=%d\n", len);
+            ERR("fread ret=%d", len);
             goto err;
         }
         done = feof(xml_file);
         if (XML_Parse(xparser, buf, len, done) == XML_STATUS_ERROR) {
-            ERR("Parsing XML failed\n");
+            ERR("Parsing XML failed");
             goto err;
         }
     } while (!done);

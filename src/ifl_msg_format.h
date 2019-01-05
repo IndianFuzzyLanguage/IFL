@@ -39,10 +39,11 @@ struct ifl_msg_field_st {
     IFL_MSG_FIELD_CONTENT field;
 };
 
-
 int IFL_MsgFieldStart(IFL_MSG_FMT_CREATOR *fmt_creator, const char *el, const char **attr);
 
 int IFL_MsgFieldEnd(IFL_MSG_FMT_CREATOR *fmt_creator, const char *el);
+
+void IFL_LogMsgFormat(IFL_MSG_FIELD *msg_format, uint8_t log_level);
 
 void IFL_FreeMsgFormat(IFL_MSG_FIELD *msg_format);
 
