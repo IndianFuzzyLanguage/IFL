@@ -40,6 +40,12 @@ struct ifl_msg_field_st {
     uint16_t depth;
 };
 
+typedef struct ifl_field_stack_st {
+    IFL_MSG_FIELD **fields;
+    uint16_t idx;
+    uint16_t size;
+}IFL_FIELD_STACK;
+
 int IFL_MsgFieldStart(IFL_MSG_FMT_CREATOR *fmt_creator, const char *el, const char **attr);
 
 int IFL_MsgFieldEnd(IFL_MSG_FMT_CREATOR *fmt_creator, const char *el);
@@ -47,6 +53,12 @@ int IFL_MsgFieldEnd(IFL_MSG_FMT_CREATOR *fmt_creator, const char *el);
 void IFL_LogMsgFormat(IFL_MSG_FIELD *msg_format, uint8_t log_level);
 
 void IFL_FreeMsgFormat(IFL_MSG_FIELD *msg_format);
+
+IFL_FIELD_STACK *IFL_InitFieldStack(IFL_MSG_FIELD *msg);
+
+void IFL_FiniFieldStack(IFL_FIELD_STACK *stack);
+
+IFL_MSG_FIELD *IFL_GetNextField(IFL_MSG_FIELD *msg, IFL_FIELD_STACK *stack);
 
 #ifdef __cplusplus
 }

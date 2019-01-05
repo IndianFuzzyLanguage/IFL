@@ -5,6 +5,7 @@
 extern "C" {
 #endif
 
+uint8_t *IFL_CraftFuzzedMsg(IFL *ifl, uint16_t *out_len);
 
 #ifdef __cplusplus
 }

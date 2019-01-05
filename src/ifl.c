@@ -2,6 +2,7 @@
 #include "ifl_log.h"
 #include "ifl_conf_parser.h"
 #include "ifl_msg_format.h"
+#include "ifl_msg.h"
 #include "ifl_util.h"
 
 IFL *IFL_Init(const char *xml_file_name, const char *xml_content)
@@ -13,6 +14,7 @@ IFL *IFL_Init(const char *xml_file_name, const char *xml_content)
 
     ifl->msg_format = IFL_ParseConf(xml_file_name, xml_content);
     IFL_CHK_ERR((!ifl->msg_format), "Parse Conf Failed", goto err);
+
     DBG("IFL init succeeded");
     IFL_LogMsgFormat(ifl->msg_format, IFL_LOG_DBG);
     return ifl;
@@ -24,41 +26,25 @@ err:
 
 void IFL_Fini(IFL *ifl)
 {
-    if (ifl) {
-        IFL_FreeMsgFormat(ifl->msg_format);
-        free(ifl);
-    }
+    IFL_CHK_ERR((!ifl), "Null pointer passed", return);
+    IFL_FreeMsgFormat(ifl->msg_format);
+    free(ifl);
 }
 
-IFL_MSG *IFL_GetFuzzedMsg(IFL *ifl)
+uint8_t *IFL_GetFuzzedMsg(IFL *ifl, uint16_t *out_len)
 {
-    IFL_MSG *ifl_msg;
+    return IFL_CraftFuzzedMsg(ifl, out_len);
+}
 
-    ifl_msg = calloc(1, sizeof(IFL_MSG));
-    if (!ifl) {
-        ERR("Mem alloc failed");
-        goto err;
-    }
-
-    DBG("IFL Fuzzed msg created %d", ifl_msg->fuzzed_id);
-    return ifl_msg;
-err:
+void IFL_FreeFuzzedMsg(uint8_t *ifl_msg)
+{
+    IFL_CHK_ERR((!ifl_msg), "Null pointer passed", return);
     free(ifl_msg);
-    return NULL;
-}
-
-void IFL_FreeFuzzedMsg(IFL_MSG *ifl_msg)
-{
-    if (ifl_msg) {
-        free(ifl_msg);
-    }
 }
 
 int IFL_Ctrl(IFL *ifl, uint32_t cmd, void *data, uint16_t data_len)
 {
-    if (!ifl) {
-        return -1;
-    }
+    IFL_CHK_ERR((!ifl), "Null pointer passed", return -1);
     return 0;
 }
 
