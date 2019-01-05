@@ -37,6 +37,7 @@ struct ifl_msg_field_st {
     IFL_TREE_STATE tree;
     IFL_LIST_STATE list;
     IFL_MSG_FIELD_CONTENT field;
+    uint16_t depth;
 };
 
 int IFL_MsgFieldStart(IFL_MSG_FMT_CREATOR *fmt_creator, const char *el, const char **attr);

@@ -18,8 +18,8 @@
 void IFL_LogMsgFormat(IFL_MSG_FIELD *msg, uint8_t log_level)
 {
     IFL_MSG_FIELD *cur = msg;
-    while(cur) {
-        LOG(log_level, "Cur=%p, id=%d", cur, cur->field.id);
+    while (cur) {
+        LOG(log_level, "Cur=%p, id=%d, depth=%d", cur, cur->field.id, cur->depth);
         cur = cur->tree.child;
     }
 }
@@ -109,6 +109,7 @@ int IFL_MsgFieldStart(IFL_MSG_FMT_CREATOR *fmt_creator, const char *el, const ch
             ERR("Parsing Attr for element=%s failed", el);
             goto err;
         }
+        new_field->depth = (fmt_creator->cur) ? fmt_creator->cur->depth + 1 : 0;
         if (!fmt_creator->head) {
             fmt_creator->head = new_field;
             fmt_creator->cur = new_field;
@@ -145,7 +146,8 @@ int IFL_MsgFieldStart(IFL_MSG_FMT_CREATOR *fmt_creator, const char *el, const ch
         new_field = NULL;
     }
 
-    TRACE("Msg Field head=%p, cur=%p", fmt_creator->head, fmt_creator->cur);
+    TRACE("Msg Field head=%p, cur=%p, cur_depth=%d", fmt_creator->head, fmt_creator->cur,
+            (fmt_creator->cur ? fmt_creator->cur->depth : -1));
     return 0;
 err:
     IFL_FreeMsgField(new_field);
@@ -164,7 +166,8 @@ int IFL_MsgFieldEnd(IFL_MSG_FMT_CREATOR *fmt_creator, const char *el)
         }
     }
     
-    TRACE("Msg Field head=%p, cur=%p", fmt_creator->head, fmt_creator->cur);
+    TRACE("Msg Field head=%p, cur=%p, cur_depth=%d", fmt_creator->head, fmt_creator->cur,
+            (fmt_creator->cur ? fmt_creator->cur->depth : -1));
     return 0;
 }
 
