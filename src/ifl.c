@@ -31,9 +31,9 @@ void IFL_Fini(IFL *ifl)
     free(ifl);
 }
 
-uint8_t *IFL_GetFuzzedMsg(IFL *ifl, uint16_t *out_len)
+int IFL_GetFuzzedMsg(IFL *ifl, uint8_t **out, uint16_t *out_len)
 {
-    return IFL_CraftFuzzedMsg(ifl, out_len);
+    return IFL_CraftFuzzedMsg(ifl, out, out_len);
 }
 
 void IFL_FreeFuzzedMsg(uint8_t *ifl_msg)
