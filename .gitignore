@@ -1,3 +1,6 @@
+tags
+cscope
+cscope.out
 obj
 bin
 libexpat

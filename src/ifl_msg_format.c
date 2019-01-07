@@ -1,9 +1,10 @@
 #include <string.h>
 
 #include "ifl_types.h"
-#include "ifl_log.h"
 #include "ifl_msg_format.h"
 #include "ifl_conf_parser.h"
+#include "ifl_util.h"
+#include "ifl_log.h"
 
 #define FIELD_ELEMENT "Field"
 #define TAG_FIELD_ELEMENT "TagField"
@@ -15,54 +16,72 @@
 #define FIELD_ATTR_TYPE "type"
 #define FIELD_ATTR_SIZE "size"
 
-int IFL_PushFieldStack(IFL_MSG_FIELD **field_stack, uint16_t stack_size, uint16_t *stack_idx, IFL_MSG_FIELD *data)
+IFL_FIELD_STACK *IFL_InitFieldStack(IFL_MSG_FIELD *msg)
 {
-    if (*stack_idx == stack_size) {
+    IFL_FIELD_STACK *stack;
+    stack = (IFL_FIELD_STACK *)calloc(1, (sizeof(IFL_FIELD_STACK)
+                    + ((msg->depth + 1) * sizeof(IFL_MSG_FIELD *))));
+    if (!stack) {
+        ERR("Field stack alloc of size %u failed", msg->depth + 1);
+        return NULL;
+    }
+    stack->fields = (IFL_MSG_FIELD **)(((uint8_t *)stack) + sizeof(IFL_FIELD_STACK));
+    stack->size = msg->depth + 1;
+    return stack;
+}
+
+int IFL_PushFieldStack(IFL_FIELD_STACK *stack, IFL_MSG_FIELD *data)
+{
+    if (stack->idx == stack->size) {
         ERR("Field stack is full");
         return -1;
     }
-    field_stack[*stack_idx] = data;
-    *stack_idx += 1;
+    stack->fields[stack->idx] = data;
+    stack->idx += 1;
     return 0;
 }
 
-IFL_MSG_FIELD *IFL_PopFieldStack(IFL_MSG_FIELD **field_stack, uint16_t *stack_idx)
+IFL_MSG_FIELD *IFL_PopFieldStack(IFL_FIELD_STACK *stack)
 {
     IFL_MSG_FIELD *ret = NULL;
-    if (*stack_idx) {
-        *stack_idx -= 1;
-        ret = field_stack[*stack_idx];
+    if (stack->idx) {
+        stack->idx -= 1;
+        ret = stack->fields[stack->idx];
     }
     return ret;
 }
 
-void IFL_LogMsgFormat(IFL_MSG_FIELD *msg, uint8_t log_level)
+IFL_MSG_FIELD *IFL_PeekFieldStack(IFL_FIELD_STACK *stack)
 {
-    IFL_MSG_FIELD *cur = msg;
-    IFL_MSG_FIELD **field_stack;
-    uint16_t field_stack_idx = 0;
+    IFL_MSG_FIELD *ret = NULL;
+    if (stack->idx) {
+        ret = stack->fields[stack->idx - 1];
+    }
+    return ret;
+}
+
+void IFL_FiniFieldStack(IFL_FIELD_STACK *stack)
+{
+    IFL_CHK_ERR((!stack), "Null pointer passed", return);
+    free(stack);
+}
+
+IFL_MSG_FIELD *IFL_GetNextField(IFL_MSG_FIELD *msg, IFL_FIELD_STACK *stack)
+{
+    IFL_MSG_FIELD *cur;
     IFL_MSG_FIELD *prev;
     IFL_MSG_FIELD *prev_parent;
 
-    LOG(log_level, "Msg tree with max depth=%u", msg->depth);
-    field_stack = (IFL_MSG_FIELD **)calloc((msg->depth + 1), sizeof(IFL_MSG_FIELD *));
-    if (!field_stack) {
-        ERR("Field stack alloc of size %u failed", msg->depth + 1);
-        return;
-    }
-    while (cur) {
-        LOG(log_level, "Cur=%p, id=%d, name=%s, depth=%d",
-                cur, cur->field.id, cur->field.name, cur->depth);
-        if (IFL_PushFieldStack(field_stack, msg->depth + 1, &field_stack_idx, cur)) {
-            ERR("Field stack push failed\n");
-            break;
-        }
+    if (!stack->idx) {
+        cur = msg;
+    } else {
+        cur = IFL_PeekFieldStack(stack);
         if (cur->tree.child) {
             cur = cur->tree.child;
         } else {
             cur = NULL;
             do {
-                prev = IFL_PopFieldStack(field_stack, &field_stack_idx);
+                prev = IFL_PopFieldStack(stack);
                 prev_parent = prev ? prev->tree.parent : NULL;
                 if ((!prev) || (!prev_parent)) {
                     break;
@@ -77,7 +96,26 @@ void IFL_LogMsgFormat(IFL_MSG_FIELD *msg, uint8_t log_level)
             } while(!cur);
         }
     }
-    free(field_stack);
+    if (cur) {
+        if (IFL_PushFieldStack(stack, cur)) {
+            ERR("Field stack push failed\n");
+            return NULL;
+        }
+    }
+    return cur;
+}
+
+void IFL_LogMsgFormat(IFL_MSG_FIELD *msg, uint8_t log_level)
+{
+    IFL_MSG_FIELD *cur;
+    IFL_FIELD_STACK *stack;
+    stack = IFL_InitFieldStack(msg);
+    LOG(log_level, "Msg tree with max depth=%u", msg->depth);
+    while((stack) && (cur = IFL_GetNextField(msg, stack))) {
+        LOG(log_level, "Cur=%p, id=%d, name=%s, size=%d, depth=%d",
+                cur, cur->field.id, cur->field.name, cur->field.size, cur->depth);
+    }
+    IFL_FiniFieldStack(stack);
 }
 
 int isFieldElement(const char *el)
