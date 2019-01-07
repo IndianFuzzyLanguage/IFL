@@ -111,7 +111,7 @@ void IFL_LogMsgFormat(IFL_MSG_FIELD *msg, uint8_t log_level)
     IFL_FIELD_STACK *stack;
     stack = IFL_InitFieldStack(msg);
     LOG(log_level, "Msg tree with max depth=%u", msg->depth);
-    while((stack) && (cur = IFL_GetNextField(msg, stack))) {
+    while ((stack) && (cur = IFL_GetNextField(msg, stack))) {
         LOG(log_level, "Cur=%p, id=%d, name=%s, size=%d, depth=%d",
                 cur, cur->field.id, cur->field.name, cur->field.size, cur->depth);
     }

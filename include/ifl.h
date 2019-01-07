@@ -29,7 +29,7 @@ IFL *IFL_Init(const char *xml_file_name, const char *xml_content);
 
 void IFL_Fini(IFL *ifl);
 
-int IFL_GetFuzzedMsg(IFL *ifl, uint8_t **out, uint16_t *out_len);
+int IFL_GetFuzzedMsg(IFL *ifl, uint8_t **out, uint32_t *out_len);
 
 void IFL_FreeFuzzedMsg(uint8_t *ifl_msg);
 
