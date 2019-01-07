@@ -15,7 +15,7 @@ IFL *IFL_Init(const char *xml_file_name, const char *xml_content)
     ifl->msg_format = IFL_ParseConf(xml_file_name, xml_content);
     IFL_CHK_ERR((!ifl->msg_format), "Parse Conf Failed", goto err);
 
-    DBG("IFL init succeeded");
+    DBG("IFL=%p init succeeded", ifl);
     IFL_LogMsgFormat(ifl->msg_format, IFL_LOG_DBG);
     return ifl;
 err:
@@ -27,11 +27,12 @@ err:
 void IFL_Fini(IFL *ifl)
 {
     IFL_CHK_ERR((!ifl), "Null pointer passed", return);
+    DBG("IFL=%p fini", ifl);
     IFL_FreeMsgFormat(ifl->msg_format);
     free(ifl);
 }
 
-int IFL_GetFuzzedMsg(IFL *ifl, uint8_t **out, uint16_t *out_len)
+int IFL_GetFuzzedMsg(IFL *ifl, uint8_t **out, uint32_t *out_len)
 {
     return IFL_CraftFuzzedMsg(ifl, out, out_len);
 }
