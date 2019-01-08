@@ -46,9 +46,9 @@ typedef struct ifl_field_stack_st {
     uint16_t size;
 }IFL_FIELD_STACK;
 
-int IFL_MsgFieldStart(IFL_MSG_FMT_CREATOR *fmt_creator, const char *el, const char **attr);
+int IFL_MsgElementStart(IFL_MSG_FMT_CREATOR *fmt_creator, const char *el, const char **attr);
 
-int IFL_MsgFieldEnd(IFL_MSG_FMT_CREATOR *fmt_creator, const char *el);
+int IFL_MsgElementEnd(IFL_MSG_FMT_CREATOR *fmt_creator, const char *el);
 
 void IFL_LogMsgFormat(IFL_MSG_FIELD *msg_format, uint8_t log_level);
 

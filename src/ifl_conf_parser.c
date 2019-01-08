@@ -46,16 +46,11 @@ void XMLCALL start_handler(void *data, const XML_Char *el, const XML_Char **attr
     }
 
     if (app_data) {
-        if (IFL_MsgFieldStart(app_data, el, attr)) {
+        if (IFL_MsgElementStart(app_data, el, attr)) {
             ERR("Failed field [%s]", get_element_str(element, sizeof(element), el, attr));
         }
     }
-    /*printf("%s", el);
-    for (i = 0; attr[i]; i += 2) {
-        printf(" %s=%s", attr[i], attr[i + 1]);
-    }*/
     printf("%s\n", get_element_str(element, sizeof(element), el, attr));
-    //printf("");
     g_depth++;
 }
 
@@ -65,7 +60,7 @@ void XMLCALL end_handler(void *data, const XML_Char *el)
     (void)data;
     (void)el;
     if (app_data) {
-        if (IFL_MsgFieldEnd(app_data, el)) {
+        if (IFL_MsgElementEnd(app_data, el)) {
             ERR("End Field update failed");
         }
     }

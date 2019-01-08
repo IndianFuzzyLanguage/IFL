@@ -118,7 +118,7 @@ void IFL_LogMsgFormat(IFL_MSG_FIELD *msg, uint8_t log_level)
     IFL_FiniFieldStack(stack);
 }
 
-int isFieldElement(const char *el)
+int isElementField(const char *el)
 {
     return (strcmp(el, FIELD_ELEMENT) ? 0 : 1);
 }
@@ -179,72 +179,91 @@ int IFL_ParseFieldAttr(IFL_MSG_FIELD *field, const char **attr)
     return 0;
 }
 
-int IFL_MsgFieldStart(IFL_MSG_FMT_CREATOR *fmt_creator, const char *el, const char **attr)
+int IFL_ParseMsgElementField(IFL_MSG_FMT_CREATOR *fmt_creator, const char *el, const char **attr)
 {
     IFL_MSG_FIELD *new_field = NULL;
     IFL_MSG_FIELD *first_child;
 
-    if (!el) {
-        ERR("Element name is NULL");
-        return -1;
+    if (!attr) {
+        ERR("Attribute is NULL for Element Field");
+        goto err;
     }
+    new_field = IFL_AllocMsgField();
+    if (!new_field) {
+        ERR("New IFL_MSG_FIELD alloc failed for field %s", el);
+        goto err;
+    }
+    if (IFL_ParseFieldAttr(new_field, attr)) {
+        ERR("Parsing Attr for element=%s failed", el);
+        goto err;
+    }
+    if (!fmt_creator->head) {
+        fmt_creator->head = new_field;
+        fmt_creator->cur = new_field;
+    } else if (!fmt_creator->cur) {
+        ERR("Receiving new Field Element after completing root tag");
+        goto err;
+    } else if (!fmt_creator->cur->tree.child) {
+        /* First child */
+        /* Update Tree states */
+        /* - Update parent node's child */
+        /* - Update child node's parent */
+        /* - Keep child node as current node */
+        fmt_creator->cur->tree.child = new_field;
+        new_field->tree.parent = fmt_creator->cur;
+        fmt_creator->cur = new_field;
+        /* Update List states */
+        new_field->list.previous = new_field->list.next = new_field;
+    } else {
+        /* Not a first child */
+        /* Update Tree states */
+        /* - No need to update parent node's child */
+        /* - Update child node's parent */
+        /* - Keep child node as current node */
+        new_field->tree.parent = fmt_creator->cur;
+        fmt_creator->cur = new_field;
+        /* Update List states */
+        /* - Get First child and update list states */
+        first_child = fmt_creator->cur->tree.parent->tree.child;
+        new_field->list.next = first_child;
+        new_field->list.previous = first_child->list.previous;
+        first_child->list.previous->list.next = new_field;
+        first_child->list.previous = new_field;
+    }
+    new_field = NULL;
+    return 0;
+err:
+    IFL_FreeMsgField(new_field);
+    return -1;
+}
+
+int IFL_ParseMsgElement(IFL_MSG_FMT_CREATOR *fmt_creator, const char *el, const char **attr)
+{
     TRACE("Start Element=%s", el);
-    if (isFieldElement(el)) {
-        if (!attr) {
-            ERR("Attribute is NULL for FieldElement");
+
+    if (isElementField(el)) {
+        if (IFL_ParseMsgElementField(fmt_creator, el, attr)) {
+            ERR("Parsing Element Field failed");
             goto err;
         }
-        new_field = IFL_AllocMsgField();
-        if (!new_field) {
-            ERR("New IFL_MSG_FIELD alloc failed for field %s", el);
-            goto err;
-        }
-        if (IFL_ParseFieldAttr(new_field, attr)) {
-            ERR("Parsing Attr for element=%s failed", el);
-            goto err;
-        }
-        if (!fmt_creator->head) {
-            fmt_creator->head = new_field;
-            fmt_creator->cur = new_field;
-        } else if (!fmt_creator->cur) {
-            ERR("Receiving new Field Element after completing root tag");
-            goto err;
-        } else if (!fmt_creator->cur->tree.child) {
-            /* First child */
-            /* Update Tree states */
-            /* - Update parent node's child */
-            /* - Update child node's parent */
-            /* - Keep child node as current node */
-            fmt_creator->cur->tree.child = new_field;
-            new_field->tree.parent = fmt_creator->cur;
-            fmt_creator->cur = new_field;
-            /* Update List states */
-            new_field->list.previous = new_field->list.next = new_field;
-        } else {
-            /* Not a first child */
-            /* Update Tree states */
-            /* - No need to update parent node's child */
-            /* - Update child node's parent */
-            /* - Keep child node as current node */
-            new_field->tree.parent = fmt_creator->cur;
-            fmt_creator->cur = new_field;
-            /* Update List states */
-            /* - Get First child and update list states */
-            first_child = fmt_creator->cur->tree.parent->tree.child;
-            new_field->list.next = first_child;
-            new_field->list.previous = first_child->list.previous;
-            first_child->list.previous->list.next = new_field;
-            first_child->list.previous = new_field;
-        }
-        new_field = NULL;
     }
 
     TRACE("Msg Field head=%p, cur=%p, cur_depth=%d", fmt_creator->head, fmt_creator->cur,
             (fmt_creator->cur ? fmt_creator->cur->depth : -1));
     return 0;
 err:
-    IFL_FreeMsgField(new_field);
     return -1;
+}
+
+int IFL_MsgElementStart(IFL_MSG_FMT_CREATOR *fmt_creator, const char *el, const char **attr)
+{
+    IFL_CHK_ERR((!el), "Element name is Null", return -1);
+    TRACE("Start Element=%s", el);
+    if (IFL_ParseMsgElement(fmt_creator, el, attr)) {
+        ERR("Parsing Msg Element %s failed", el);
+        return -1;
+    }
+    return 0;
 }
 
 void IFL_UpdateTreeReverseDepth(IFL_MSG_FIELD *child, IFL_MSG_FIELD *parent)
@@ -256,10 +275,10 @@ void IFL_UpdateTreeReverseDepth(IFL_MSG_FIELD *child, IFL_MSG_FIELD *parent)
     }
 }
 
-int IFL_MsgFieldEnd(IFL_MSG_FMT_CREATOR *fmt_creator, const char *el)
+int IFL_MsgElementEnd(IFL_MSG_FMT_CREATOR *fmt_creator, const char *el)
 {
     TRACE("End Element=%s", el);
-    if (isFieldElement(el)) {
+    if (isElementField(el)) {
         if (fmt_creator->cur) {
             IFL_UpdateTreeReverseDepth(fmt_creator->cur, fmt_creator->cur->tree.parent);
             fmt_creator->cur = fmt_creator->cur->tree.parent;
