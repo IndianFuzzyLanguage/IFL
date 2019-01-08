@@ -6,10 +6,12 @@
 #include "ifl_util.h"
 #include "ifl_log.h"
 
-#define FIELD_ELEMENT "Field"
-#define TAG_FIELD_ELEMENT "TagField"
-#define LENGTH_FIELD_ELEMENT "LengthField"
-#define VALUE_FIELD_ELEMENT "ValueField"
+#define IFL_MSG_ELEM_FIELD          "Field"
+#define IFL_MSG_ELEM_VALUE_TYPE     "ValueType"
+#define IFL_MSG_ELEM_DEFAULT_VALUE  "DefaultValue"
+#define IFL_MSG_ELEM_TAG_FIELD      "TagField"
+#define IFL_MSG_ELEM_LENGTH_FIELD   "LengthField"
+#define IFL_MSG_ELEM_VALUE_FIELD    "ValueField"
 
 #define FIELD_ATTR_ID "id"
 #define FIELD_ATTR_NAME "name"
@@ -98,7 +100,7 @@ IFL_MSG_FIELD *IFL_GetNextField(IFL_MSG_FIELD *msg, IFL_FIELD_STACK *stack)
     }
     if (cur) {
         if (IFL_PushFieldStack(stack, cur)) {
-            ERR("Field stack push failed\n");
+            ERR("Field stack push failed");
             return NULL;
         }
     }
@@ -120,7 +122,17 @@ void IFL_LogMsgFormat(IFL_MSG_FIELD *msg, uint8_t log_level)
 
 int isElementField(const char *el)
 {
-    return (strcmp(el, FIELD_ELEMENT) ? 0 : 1);
+    return (strcmp(el, IFL_MSG_ELEM_FIELD) ? 0 : 1);
+}
+
+int isElementValueType(const char *el)
+{
+    return (strcmp(el, IFL_MSG_ELEM_VALUE_TYPE) ? 0 : 1);
+}
+
+int isElementDefaultValue(const char *el)
+{
+    return (strcmp(el, IFL_MSG_ELEM_DEFAULT_VALUE) ? 0 : 1);
 }
 
 IFL_MSG_FIELD *IFL_AllocMsgField()
@@ -179,7 +191,7 @@ int IFL_ParseFieldAttr(IFL_MSG_FIELD *field, const char **attr)
     return 0;
 }
 
-int IFL_ParseMsgElementField(IFL_MSG_FMT_CREATOR *fmt_creator, const char *el, const char **attr)
+int IFL_ParseMsgElemField(IFL_MSG_FMT_CREATOR *fmt_creator, const char *el, const char **attr)
 {
     IFL_MSG_FIELD *new_field = NULL;
     IFL_MSG_FIELD *first_child;
@@ -237,13 +249,65 @@ err:
     return -1;
 }
 
-int IFL_ParseMsgElement(IFL_MSG_FMT_CREATOR *fmt_creator, const char *el, const char **attr)
+int IFL_ParseMsgElemValueTypeData(IFL_MSG_FMT_CREATOR *fmt_creator)
+{
+    //TODO
+    return 0;
+}
+
+int IFL_ParseMsgElemDefaultValueData(IFL_MSG_FMT_CREATOR *fmt_creator)
+{
+    //TODO
+    return 0;
+}
+
+int IFL_ParseMsgElemValueType(IFL_MSG_FMT_CREATOR *fmt_creator, const char *el,
+                                                                const char **attr)
+{
+    if (fmt_creator->cur) {
+        memset(fmt_creator->cur->field.default_val_type_str, 0,
+                sizeof(fmt_creator->cur->field.default_val_type_str));
+        fmt_creator->element_data = fmt_creator->cur->field.default_val_type_str;
+        fmt_creator->element_data_size = sizeof(fmt_creator->cur->field.default_val_type_str);
+        return 0;
+    } else {
+        ERR("Current node is NULL for element %s", el);
+    }
+    return 0;
+}
+
+int IFL_ParseMsgElemDefaultValue(IFL_MSG_FMT_CREATOR *fmt_creator, const char *el,
+                                                                    const char **attr)
+{
+    if (fmt_creator->cur) {
+        memset(fmt_creator->cur->field.default_val_str, 0,
+                sizeof(fmt_creator->cur->field.default_val_str));
+        fmt_creator->element_data = fmt_creator->cur->field.default_val_str;
+        fmt_creator->element_data_size = sizeof(fmt_creator->cur->field.default_val_str);
+        return 0;
+    } else {
+        ERR("Current node is NULL for element %s", el);
+        return -1;
+    }
+}
+
+int IFL_ParseMsgElem(IFL_MSG_FMT_CREATOR *fmt_creator, const char *el, const char **attr)
 {
     TRACE("Start Element=%s", el);
 
     if (isElementField(el)) {
-        if (IFL_ParseMsgElementField(fmt_creator, el, attr)) {
+        if (IFL_ParseMsgElemField(fmt_creator, el, attr)) {
             ERR("Parsing Element Field failed");
+            goto err;
+        }
+    } else if (isElementValueType(el)) {
+        if (IFL_ParseMsgElemValueType(fmt_creator, el, attr)) {
+            ERR("Parsing Element Value Type failed");
+            goto err;
+        }
+    } else if (isElementDefaultValue(el)) {
+        if (IFL_ParseMsgElemDefaultValue(fmt_creator, el, attr)) {
+            ERR("Parsing Element Default Value failed");
             goto err;
         }
     }
@@ -255,15 +319,29 @@ err:
     return -1;
 }
 
-int IFL_MsgElementStart(IFL_MSG_FMT_CREATOR *fmt_creator, const char *el, const char **attr)
+int IFL_MsgElemStart(IFL_MSG_FMT_CREATOR *fmt_creator, const char *el, const char **attr)
 {
     IFL_CHK_ERR((!el), "Element name is Null", return -1);
-    TRACE("Start Element=%s", el);
-    if (IFL_ParseMsgElement(fmt_creator, el, attr)) {
+    if (IFL_ParseMsgElem(fmt_creator, el, attr)) {
         ERR("Parsing Msg Element %s failed", el);
         return -1;
     }
     return 0;
+}
+
+int IFL_MsgElemData(IFL_MSG_FMT_CREATOR *fmt_creator, const char *data)
+{
+    if ((fmt_creator->element_data) && (fmt_creator->element_data_size > strlen(data))) {
+        TRACE("Updating Element data=%s", data);
+        strcpy(fmt_creator->element_data, data);
+        fmt_creator->element_data = NULL;
+        fmt_creator->element_data_size = 0;
+        return 0;
+    } else {
+        ERR("Element data=%s not able to copy to %s:%d", data,
+                fmt_creator->element_data, fmt_creator->element_data_size);
+        return -1;
+    }
 }
 
 void IFL_UpdateTreeReverseDepth(IFL_MSG_FIELD *child, IFL_MSG_FIELD *parent)
@@ -275,7 +353,7 @@ void IFL_UpdateTreeReverseDepth(IFL_MSG_FIELD *child, IFL_MSG_FIELD *parent)
     }
 }
 
-int IFL_MsgElementEnd(IFL_MSG_FMT_CREATOR *fmt_creator, const char *el)
+int IFL_MsgElemEnd(IFL_MSG_FMT_CREATOR *fmt_creator, const char *el)
 {
     TRACE("End Element=%s", el);
     if (isElementField(el)) {
@@ -288,6 +366,16 @@ int IFL_MsgElementEnd(IFL_MSG_FMT_CREATOR *fmt_creator, const char *el)
             }
         } else {
             ERR("Abnormal state, Cur=%p, element=%s", fmt_creator->cur, el);
+            return -1;
+        }
+    } else if (isElementValueType(el)) {
+        if (IFL_ParseMsgElemValueTypeData(fmt_creator)) {
+            ERR("Parsing Value Type Data failed");
+            return -1;
+        }
+    } else if (isElementDefaultValue(el)) {
+        if (IFL_ParseMsgElemDefaultValueData(fmt_creator)) {
+            ERR("Parsing Default Value Data failed");
             return -1;
         }
     }

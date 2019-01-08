@@ -8,7 +8,8 @@ extern "C" {
 #include "ifl_conf_parser.h"
 
 #define IFL_FIELD_NAME_MAX 256
-#define IFL_FIELD_DEFAULT_VAL_MAX 256
+#define IFL_ELEM_DEFAULT_VAL_DATA_MAX 256
+#define IFL_ELEM_VAL_TYPE_DATA_MAX 16
 
 #define IFL_FIELD_TYPE_V    1
 #define IFL_FIELD_TYPE_LV   2
@@ -20,7 +21,10 @@ typedef struct ifl_msg_field_content_st {
     char name[IFL_FIELD_NAME_MAX];
     uint32_t type; /* V, LV, TLV */
     uint32_t size;
-    uint8_t default_value[IFL_FIELD_DEFAULT_VAL_MAX];
+    uint8_t default_val[IFL_ELEM_DEFAULT_VAL_DATA_MAX];
+    char default_val_str[IFL_ELEM_DEFAULT_VAL_DATA_MAX];
+    uint16_t default_val_type;
+    char default_val_type_str[IFL_ELEM_VAL_TYPE_DATA_MAX];
 }IFL_MSG_FIELD_CONTENT;
 
 typedef struct ifl_tree_state_st {
@@ -46,9 +50,11 @@ typedef struct ifl_field_stack_st {
     uint16_t size;
 }IFL_FIELD_STACK;
 
-int IFL_MsgElementStart(IFL_MSG_FMT_CREATOR *fmt_creator, const char *el, const char **attr);
+int IFL_MsgElemStart(IFL_MSG_FMT_CREATOR *fmt_creator, const char *el, const char **attr);
 
-int IFL_MsgElementEnd(IFL_MSG_FMT_CREATOR *fmt_creator, const char *el);
+int IFL_MsgElemData(IFL_MSG_FMT_CREATOR *fmt_creator, const char *data);
+
+int IFL_MsgElemEnd(IFL_MSG_FMT_CREATOR *fmt_creator, const char *el);
 
 void IFL_LogMsgFormat(IFL_MSG_FIELD *msg_format, uint8_t log_level);
 
