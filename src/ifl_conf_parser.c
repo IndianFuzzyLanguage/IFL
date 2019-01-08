@@ -46,16 +46,12 @@ void XMLCALL start_handler(void *data, const XML_Char *el, const XML_Char **attr
     }
 
     if (app_data) {
-        if (IFL_MsgFieldStart(app_data, el, attr)) {
-            ERR("Failed field [%s]", get_element_str(element, sizeof(element), el, attr));
+        if (IFL_MsgElemStart(app_data, el, attr)) {
+            ERR("Start field update failed [%s]", el);
+            app_data->err_occured = 1;
         }
     }
-    /*printf("%s", el);
-    for (i = 0; attr[i]; i += 2) {
-        printf(" %s=%s", attr[i], attr[i + 1]);
-    }*/
     printf("%s\n", get_element_str(element, sizeof(element), el, attr));
-    //printf("");
     g_depth++;
 }
 
@@ -65,8 +61,9 @@ void XMLCALL end_handler(void *data, const XML_Char *el)
     (void)data;
     (void)el;
     if (app_data) {
-        if (IFL_MsgFieldEnd(app_data, el)) {
-            ERR("End Field update failed");
+        if (IFL_MsgElemEnd(app_data, el)) {
+            ERR("End Field update failed [%s]", el);
+            app_data->err_occured = 1;
         }
     }
     g_depth--;
@@ -89,6 +86,7 @@ char *trim_space(char *in)
 
 void XMLCALL data_handler(void *data, const XML_Char *buf, int len)
 {
+    IFL_MSG_FMT_CREATOR *app_data = (IFL_MSG_FMT_CREATOR *)data;
     char *buf_new;
     char *buf_new2;
     if (buf && (len > 1)) {
@@ -100,6 +98,10 @@ void XMLCALL data_handler(void *data, const XML_Char *buf, int len)
             buf_new = NULL;
             if (buf_new2) {
                 printf(" [%s]\n", buf_new2);
+                if (IFL_MsgElemData(app_data, buf_new2)) {
+                    ERR("Element data update failed [%s]", data);
+                    app_data->err_occured = 1;
+                }
                 free(buf_new2);
             }
         }
@@ -148,6 +150,11 @@ IFL_MSG_FIELD *IFL_ParseConf(const char *xml_file_name, const char *xml_content)
         }
     } while (!done);
     XML_ParserFree(xparser);
+    if (app_data.err_occured) {
+        ERR("Error occured while parsing XML conf");
+        IFL_FreeMsgFormat(app_data.head);
+        goto err;
+    }
     return app_data.head;
 err:
     return NULL;

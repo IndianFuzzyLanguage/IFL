@@ -21,16 +21,16 @@ int IFL_CraftFuzzedMsg(IFL *ifl, uint8_t **out, uint32_t *out_len)
         return -1;
     }
     if (IFL_InitBuf(&ibuf)) {
-        ERR("Initing IFL Buf Failed\n");
+        ERR("Initing IFL Buf Failed");
         goto err;
     }
     while ((cur = IFL_GetNextField(ifl->msg_format, stack))) {
         if (cur->depth) {
-            TRACE("Ignore non leaf field=%s id=%d\n", cur->field.name, cur->field.id);
+            TRACE("Ignore non leaf field=%s id=%d", cur->field.name, cur->field.id);
         } else {
             /* TODO Need to encode in network order */
-            TRACE("Updated leaf field=%s id=%d\n", cur->field.name, cur->field.id);
-            IFL_UpdateBuf(&ibuf, cur->field.default_value, cur->field.size);
+            TRACE("Updated leaf field=%s id=%d", cur->field.name, cur->field.id);
+            IFL_UpdateBuf(&ibuf, cur->field.default_val, cur->field.size);
         }
     }
     *out = ibuf.buf;

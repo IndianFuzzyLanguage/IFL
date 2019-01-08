@@ -34,7 +34,7 @@ int IFL_ResizeBuf(IFL_BUF *ibuf, uint32_t additional_size)
         }
         new_buf = calloc(1, ibuf->buf_size + additional_size);
         if (!new_buf) {
-            ERR("IFL resize for %d failed\n", ibuf->buf_size + additional_size);
+            ERR("IFL resize for %d failed", ibuf->buf_size + additional_size);
             goto err;
         }
         memcpy(new_buf, ibuf->buf, ibuf->buf_size);
@@ -52,7 +52,7 @@ int IFL_UpdateBuf(IFL_BUF *ibuf, uint8_t *data, uint32_t data_len)
 {
     if ((ibuf->buf_size - ibuf->data_len) < data_len) {
         if (IFL_ResizeBuf(ibuf, data_len)) {
-            ERR("IFL buf Resize failed\n");
+            ERR("IFL buf Resize failed");
             return -1;
         }
     }
