@@ -29,9 +29,12 @@ int IFL_CraftFuzzedMsg(IFL *ifl, uint8_t **out, uint32_t *out_len)
             TRACE("Ignore non leaf field=%s id=%d", cur->field.name, cur->field.id);
         } else {
             /* TODO Need to encode in network order */
-            TRACE("Updated leaf field=%s id=%d", cur->field.name, cur->field.id);
+            TRACE("Updated leaf field=%s id=%d, size=%d", cur->field.name, cur->field.id,
+                        cur->field.size);
             if (cur->field.default_val_type == IFL_MSG_FIELD_VAL_TYPE_HEX) {
                 IFL_UpdateBuf(&ibuf, cur->field.default_val.hex, cur->field.size);
+            } else {
+                IFL_UpdateBuf(&ibuf, NULL, cur->field.size);
             }
         }
     }
