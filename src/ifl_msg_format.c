@@ -126,8 +126,8 @@ void IFL_LogMsgFormat(IFL_MSG_FIELD *msg, uint8_t log_level)
     char val_str[IFL_ELEM_DEFAULT_VAL_DATA_STR_MAX] = {0};
     LOG(log_level, "Msg tree with max depth=%u", msg->depth);
     while ((stack) && (cur = IFL_GetNextField(msg, stack))) {
-        LOG(log_level, "Cur=%p, id=%d, name=%s, size=%d, DefaultVal=%s, depth=%d",
-                cur, cur->field.id, cur->field.name, cur->field.size,
+        LOG(log_level, "Cur=%p, id=%d, name=%s, size=%d, type=%d, DefaultVal=%s, depth=%d",
+                cur, cur->field.id, cur->field.name, cur->field.size, cur->field.type,
                 IFL_GetFieldDefaultValStr(cur, val_str, sizeof(val_str)), cur->depth);
     }
     IFL_FiniFieldStack(stack);
@@ -168,7 +168,18 @@ void IFL_FreeMsgFormat(IFL_MSG_FIELD *msg_format)
 
 int IFL_ParseFieldAttrType(IFL_MSG_FIELD *field, const char *type)
 {
-    /* TODO Pending */
+    if (!strcmp(type, IFL_MSG_FIELD_TYPE_V_STR)) {
+        field->field.type = IFL_MSG_FIELD_TYPE_V;
+    } else if (!strcmp(type, IFL_MSG_FIELD_TYPE_LV_STR)) {
+        field->field.type = IFL_MSG_FIELD_TYPE_LV;
+    } else if (!strcmp(type, IFL_MSG_FIELD_TYPE_TLV_STR)) {
+        field->field.type = IFL_MSG_FIELD_TYPE_TLV;
+    } else if (!strcmp(type, IFL_MSG_FIELD_TYPE_S_STR)) {
+        field->field.type = IFL_MSG_FIELD_TYPE_S;
+    } else {
+        ERR("Unsupported field type=%s", type);
+        return -1;
+    }
     return 0;
 }
 
