@@ -89,7 +89,7 @@ void XMLCALL data_handler(void *data, const XML_Char *buf, int len)
     IFL_MSG_FMT_CREATOR *app_data = (IFL_MSG_FMT_CREATOR *)data;
     char *buf_new;
     char *buf_new2;
-    if (buf && (len > 1)) {
+    if (buf && (len > 0)) {
         buf_new = calloc(1, len+1);
         if (buf_new) {
             memcpy(buf_new, buf, len);

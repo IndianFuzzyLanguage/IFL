@@ -7,24 +7,49 @@ extern "C" {
 
 #include "ifl_conf_parser.h"
 
-#define IFL_FIELD_NAME_MAX 256
-#define IFL_ELEM_DEFAULT_VAL_DATA_MAX 256
-#define IFL_ELEM_VAL_TYPE_DATA_MAX 16
+#define IFL_FIELD_NAME_MAX                  256
+#define IFL_ELEM_DEFAULT_VAL_DATA_MAX       128
+#define IFL_ELEM_DEFAULT_VAL_DATA_STR_MAX   256
+#define IFL_ELEM_VAL_TYPE_DATA_MAX          16
 
-#define IFL_FIELD_TYPE_V    1
-#define IFL_FIELD_TYPE_LV   2
-#define IFL_FIELD_TYPE_TLV  3
-#define IFL_FIELD_TYPE_S    4
+#define IFL_MSG_ELEM_FIELD          "Field"
+#define IFL_MSG_ELEM_VALUE_TYPE     "ValueType"
+#define IFL_MSG_ELEM_DEFAULT_VALUE  "DefaultValue"
+#define IFL_MSG_ELEM_TAG_FIELD      "TagField"
+#define IFL_MSG_ELEM_LENGTH_FIELD   "LengthField"
+#define IFL_MSG_ELEM_VALUE_FIELD    "ValueField"
+
+#define IFL_MSG_FIELD_TYPE_V    1
+#define IFL_MSG_FIELD_TYPE_LV   2
+#define IFL_MSG_FIELD_TYPE_TLV  3
+#define IFL_MSG_FIELD_TYPE_S    4
+
+#define IFL_MSG_FIELD_ATTR_ID       "id"
+#define IFL_MSG_FIELD_ATTR_NAME     "name"
+#define IFL_MSG_FIELD_ATTR_TYPE     "type"
+#define IFL_MSG_FIELD_ATTR_SIZE     "size"
+
+#define IFL_MSG_FIELD_VAL_TYPE_STR_UINT   "uint"
+#define IFL_MSG_FIELD_VAL_TYPE_STR_HEX    "hex"
+
+#define IFL_MSG_FIELD_VAL_TYPE_UINT   1
+#define IFL_MSG_FIELD_VAL_TYPE_HEX    2
+
+typedef union ifl_msg_field_default_val_st {
+    uint8_t hex[IFL_ELEM_DEFAULT_VAL_DATA_MAX];
+    uint32_t u32;
+}IFL_MSG_FIELD_DEFAULT_VAL;
 
 typedef struct ifl_msg_field_content_st {
     uint32_t id;
     char name[IFL_FIELD_NAME_MAX];
     uint32_t type; /* V, LV, TLV */
     uint32_t size;
-    uint8_t default_val[IFL_ELEM_DEFAULT_VAL_DATA_MAX];
-    char default_val_str[IFL_ELEM_DEFAULT_VAL_DATA_MAX];
-    uint16_t default_val_type;
     char default_val_type_str[IFL_ELEM_VAL_TYPE_DATA_MAX];
+    uint16_t default_val_type;
+    char default_val_str[IFL_ELEM_DEFAULT_VAL_DATA_STR_MAX];
+    IFL_MSG_FIELD_DEFAULT_VAL default_val;
+    uint16_t default_val_size; /* Updated only for hex */
 }IFL_MSG_FIELD_CONTENT;
 
 typedef struct ifl_tree_state_st {
