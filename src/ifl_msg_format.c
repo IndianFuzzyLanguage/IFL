@@ -6,18 +6,6 @@
 #include "ifl_util.h"
 #include "ifl_log.h"
 
-#define IFL_MSG_ELEM_FIELD          "Field"
-#define IFL_MSG_ELEM_VALUE_TYPE     "ValueType"
-#define IFL_MSG_ELEM_DEFAULT_VALUE  "DefaultValue"
-#define IFL_MSG_ELEM_TAG_FIELD      "TagField"
-#define IFL_MSG_ELEM_LENGTH_FIELD   "LengthField"
-#define IFL_MSG_ELEM_VALUE_FIELD    "ValueField"
-
-#define FIELD_ATTR_ID "id"
-#define FIELD_ATTR_NAME "name"
-#define FIELD_ATTR_TYPE "type"
-#define FIELD_ATTR_SIZE "size"
-
 IFL_FIELD_STACK *IFL_InitFieldStack(IFL_MSG_FIELD *msg)
 {
     IFL_FIELD_STACK *stack;
@@ -107,15 +95,40 @@ IFL_MSG_FIELD *IFL_GetNextField(IFL_MSG_FIELD *msg, IFL_FIELD_STACK *stack)
     return cur;
 }
 
+char *IFL_GetFieldDefaultValStr(IFL_MSG_FIELD *field, char *out, uint16_t out_size)
+{
+    int ret;
+    int i, off = 0;
+    switch(field->field.default_val_type) {
+        case IFL_MSG_FIELD_VAL_TYPE_UINT:
+            snprintf(out, out_size, "%u", field->field.default_val.u32);
+            break;
+        case IFL_MSG_FIELD_VAL_TYPE_HEX:
+            for (i = 0; i < field->field.default_val_size; i++) {
+                ret = snprintf(out + off, out_size - off, "%02X", field->field.default_val.hex[i]);
+                if ((ret > 0) && (ret < (out_size - off))) {
+                    off += ret;
+                }
+            }
+            break;
+        default:
+            snprintf(out, out_size, "Nothing");
+            break;
+    }
+    return out;
+}
+
 void IFL_LogMsgFormat(IFL_MSG_FIELD *msg, uint8_t log_level)
 {
     IFL_MSG_FIELD *cur;
     IFL_FIELD_STACK *stack;
     stack = IFL_InitFieldStack(msg);
+    char val_str[IFL_ELEM_DEFAULT_VAL_DATA_STR_MAX] = {0};
     LOG(log_level, "Msg tree with max depth=%u", msg->depth);
     while ((stack) && (cur = IFL_GetNextField(msg, stack))) {
-        LOG(log_level, "Cur=%p, id=%d, name=%s, size=%d, depth=%d",
-                cur, cur->field.id, cur->field.name, cur->field.size, cur->depth);
+        LOG(log_level, "Cur=%p, id=%d, name=%s, size=%d, DefaultVal=%s, depth=%d",
+                cur, cur->field.id, cur->field.name, cur->field.size,
+                IFL_GetFieldDefaultValStr(cur, val_str, sizeof(val_str)), cur->depth);
     }
     IFL_FiniFieldStack(stack);
 }
@@ -167,20 +180,20 @@ int IFL_ParseFieldAttr(IFL_MSG_FIELD *field, const char **attr)
     for (i = 0; attr[i]; i += 2) {
         attr_name = attr[i];
         attr_val = attr[i + 1];
-        if (!strcmp(attr_name, FIELD_ATTR_ID)) {
+        if (!strcmp(attr_name, IFL_MSG_FIELD_ATTR_ID)) {
             field->field.id = atoi(attr_val);
-        } else if (!strcmp(attr_name, FIELD_ATTR_NAME)) {
+        } else if (!strcmp(attr_name, IFL_MSG_FIELD_ATTR_NAME)) {
             if (strlen(attr_val) >= sizeof(field->field.name)) {
                 ERR("Insufficient memory for Name Attr len=%zu", strlen(attr_val));
                 return -1;
             }
             strcpy(field->field.name, attr_val);
-        } else if (!strcmp(attr_name, FIELD_ATTR_TYPE)) {
+        } else if (!strcmp(attr_name, IFL_MSG_FIELD_ATTR_TYPE)) {
             if (IFL_ParseFieldAttrType(field, attr_val)) {
                 ERR("Unsupported Type Attr val=%s", attr_val);
                 return -1;
             }
-        } else if (!strcmp(attr_name, FIELD_ATTR_SIZE)) {
+        } else if (!strcmp(attr_name, IFL_MSG_FIELD_ATTR_SIZE)) {
             if (atoi(attr_val) < 0) {
                 ERR("Received invalid field size=%d", atoi(attr_val));
                 return -1;
@@ -249,26 +262,23 @@ err:
     return -1;
 }
 
-int IFL_ParseMsgElemValueTypeData(IFL_MSG_FMT_CREATOR *fmt_creator)
-{
-    //TODO
-    return 0;
-}
-
-int IFL_ParseMsgElemDefaultValueData(IFL_MSG_FMT_CREATOR *fmt_creator)
-{
-    //TODO
-    return 0;
-}
-
+/*
+ * @Description: This function gets called for the start of element <ValueType>. As nothing
+ * needs to be parsed here, it simply assigns the corresponding buffer to "element_data" for
+ * copying element data. Callback for element data updates in this buffer. This function should
+ * not get called when there is no current <Field> tag, that means <ValueType> should be sub
+ * element of a <Field> tag.
+ *
+ * @Return: Returns Success incase of valid current field is present or else failure
+ */
 int IFL_ParseMsgElemValueType(IFL_MSG_FMT_CREATOR *fmt_creator, const char *el,
                                                                 const char **attr)
 {
-    if (fmt_creator->cur) {
-        memset(fmt_creator->cur->field.default_val_type_str, 0,
-                sizeof(fmt_creator->cur->field.default_val_type_str));
-        fmt_creator->element_data = fmt_creator->cur->field.default_val_type_str;
-        fmt_creator->element_data_size = sizeof(fmt_creator->cur->field.default_val_type_str);
+    IFL_MSG_FIELD *cur = fmt_creator->cur;
+    if (cur) {
+        memset(cur->field.default_val_type_str, 0, sizeof(cur->field.default_val_type_str));
+        fmt_creator->element_data = cur->field.default_val_type_str;
+        fmt_creator->element_data_size = sizeof(cur->field.default_val_type_str);
         return 0;
     } else {
         ERR("Current node is NULL for element %s", el);
@@ -276,19 +286,100 @@ int IFL_ParseMsgElemValueType(IFL_MSG_FMT_CREATOR *fmt_creator, const char *el,
     return 0;
 }
 
+/* @Description: This function gets called for the end element of <ValueType>. This parses
+ * the data of the element.
+ *
+ * @Return: Returns Success incase of valid Data or else failure
+ */
+int IFL_ParseMsgElemValueTypeData(IFL_MSG_FMT_CREATOR *fmt_creator)
+{
+    IFL_MSG_FIELD *cur = fmt_creator->cur;
+    char *val_type_str;
+    if (!cur) {
+        ERR("Receiving Value Type element end and current is NULL");
+        return -1;
+    }
+    val_type_str = cur->field.default_val_type_str;
+    if (!strcmp(val_type_str, IFL_MSG_FIELD_VAL_TYPE_STR_UINT)) {
+        cur->field.default_val_type = IFL_MSG_FIELD_VAL_TYPE_UINT;
+    } else if (!strcmp(val_type_str, IFL_MSG_FIELD_VAL_TYPE_STR_HEX)) {
+        cur->field.default_val_type = IFL_MSG_FIELD_VAL_TYPE_HEX;
+    } else {
+        ERR("Unsupported value type=%s", val_type_str);
+        return -1;
+    }
+    return 0;
+}
+
+/*
+ * @Description: This function gets called for the start of element <DefaultValue>. As nothing
+ * needs to be parsed here, it simply assigns the corresponding buffer to "element_data" for
+ * copying element data. Callback for element data updates in this buffer. This function should
+ * not get called when there is no current <Field> tag, that means <DefaultValue> should be sub
+ * element of a <Field> tag.
+ *
+ * @Return: Returns Success incase of valid current field is present or else failure
+ */
 int IFL_ParseMsgElemDefaultValue(IFL_MSG_FMT_CREATOR *fmt_creator, const char *el,
                                                                     const char **attr)
 {
-    if (fmt_creator->cur) {
-        memset(fmt_creator->cur->field.default_val_str, 0,
-                sizeof(fmt_creator->cur->field.default_val_str));
-        fmt_creator->element_data = fmt_creator->cur->field.default_val_str;
-        fmt_creator->element_data_size = sizeof(fmt_creator->cur->field.default_val_str);
+    IFL_MSG_FIELD *cur = fmt_creator->cur;
+    if (cur) {
+        memset(cur->field.default_val_str, 0, sizeof(cur->field.default_val_str));
+        fmt_creator->element_data = cur->field.default_val_str;
+        fmt_creator->element_data_size = sizeof(cur->field.default_val_str);
         return 0;
     } else {
         ERR("Current node is NULL for element %s", el);
         return -1;
     }
+}
+
+/* @Description: This function gets called for the end element of <DefaultValue>. This parses
+ * the data of the element.
+ *
+ * @Return: Returns Success incase of valid Data or else failure
+ */
+int IFL_ParseMsgElemDefaultValueData(IFL_MSG_FMT_CREATOR *fmt_creator)
+{
+    IFL_MSG_FIELD *cur = fmt_creator->cur;
+    char *val_str;
+    uint16_t val_type;
+    int idx = 0, out_idx = 0;
+    uint32_t hex_val;
+    if (!cur) {
+        ERR("Receiving Default Value element end and current is NULL");
+        return -1;
+    }
+    val_str = cur->field.default_val_str;
+    val_type = cur->field.default_val_type;
+    if (val_type) {
+        if (!strlen(val_str)) {
+            ERR("Value type=%d is configured and default value is NULL str", val_type);
+            return -1;
+        }
+        switch(val_type) {
+            case IFL_MSG_FIELD_VAL_TYPE_UINT:
+                sscanf(val_str, "%u", &cur->field.default_val.u32);
+                TRACE("Field=%d, id=%d, default_val=%u", cur->field.name, cur->field.id,
+                        cur->field.default_val.u32);
+                break;
+            case IFL_MSG_FIELD_VAL_TYPE_HEX:
+                do {
+                    sscanf(val_str + idx, "%02X", &hex_val);
+                    cur->field.default_val.hex[out_idx] = hex_val & 0xFF;
+                    idx += 2;
+                    out_idx++;
+                } while(idx < strlen(val_str));
+                cur->field.default_val_size = out_idx;
+                TRACE("Field=%d, id=%d", cur->field.name, cur->field.id);
+                break;
+            default:
+                ERR("Invalid Val type %d", val_type);
+                return -1;
+        }
+    }
+    return 0;
 }
 
 int IFL_ParseMsgElem(IFL_MSG_FMT_CREATOR *fmt_creator, const char *el, const char **attr)

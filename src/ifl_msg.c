@@ -30,7 +30,9 @@ int IFL_CraftFuzzedMsg(IFL *ifl, uint8_t **out, uint32_t *out_len)
         } else {
             /* TODO Need to encode in network order */
             TRACE("Updated leaf field=%s id=%d", cur->field.name, cur->field.id);
-            IFL_UpdateBuf(&ibuf, cur->field.default_val, cur->field.size);
+            if (cur->field.default_val_type == IFL_MSG_FIELD_VAL_TYPE_HEX) {
+                IFL_UpdateBuf(&ibuf, cur->field.default_val.hex, cur->field.size);
+            }
         }
     }
     *out = ibuf.buf;
