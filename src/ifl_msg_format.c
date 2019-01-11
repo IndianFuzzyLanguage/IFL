@@ -56,6 +56,12 @@ void IFL_FiniFieldStack(IFL_FIELD_STACK *stack)
     free(stack);
 }
 
+/* @Description: This function traverses the Tree in Depth First Search and returns each
+ * node one by one.
+ *
+ * @Return: Returns the current selected node. If traversal finishes returns NULL
+ *
+ */
 IFL_MSG_FIELD *IFL_GetNextField(IFL_MSG_FIELD *msg, IFL_FIELD_STACK *stack)
 {
     IFL_MSG_FIELD *cur;
