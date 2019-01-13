@@ -27,19 +27,42 @@ int IFL_IsFieldSizeUpdateRequired(IFL_MSG_FIELD *field)
     return 0;
 }
 
-/* @Description: This function performs some Post Update to field after crafting msg.
- * This function adds child size to all the parents. This performs to parent of type
- * LV, TLV and S. For others no size update is required on parent based on child.
+/* @Description: Updates integer value to pkt buffer in network byte order
  *
  * @Return: Void
  */
-void IFL_FieldPostUpdate(IFL_MSG_FIELD *cur)
+void IFL_UpdatePrevLengthField(uint8_t *buf, uint32_t field_size, uint32_t value)
+{
+    TRACE("Buf=%p updating of size=%d, value=%u", buf, field_size, value);
+    IFL_Host2Network(buf, field_size, value);
+}
+
+/* @Description: This function performs some Post Update to field after crafting msg.
+ * 1) Adds child size to all the parents. This performs to parent of type
+ * LV, TLV and S. For others no size update is required on parent based on child.
+ * 2) If current field's grand parent is of LV or TLV type, then update length in 
+ * parent's previous field's (previous sibling) value.
+ *
+ * @Return: Void
+ */
+void IFL_FieldPostUpdate(IFL_MSG_FIELD *cur, IFL_BUF *ibuf)
 {
     IFL_MSG_FIELD *parent = cur->tree.parent;
+    IFL_MSG_FIELD *length_field_of_parent;
+    /* 1) Adds child size to all the parents of type LV, TLV and S */
     while (parent) {
         if (IFL_IsFieldSizeUpdateRequired(parent)) {
             parent->field.size += cur->field.size;
-            TRACE("Field=%d size=%d updated", parent->field.id, parent->field.size);
+            TRACE("Field=%s updated size=%u", parent->field.name, parent->field.size);
+            /* 2) If parent field is "V" field of LV or TLV grand parent, then update length */
+            /* in previous field's value of parent */
+            length_field_of_parent = IFL_GetLengthField(parent);
+            if ((length_field_of_parent) && (length_field_of_parent == parent->list.previous)) {
+                TRACE("Field=%s updating length field", parent->field.name);
+                IFL_UpdatePrevLengthField((IFL_GetOffsettedBufPos(ibuf)
+                                    - (parent->field.size + length_field_of_parent->field.size)),
+                                    length_field_of_parent->field.size, parent->field.size);
+            }
         }
         parent = parent->tree.parent;
     }
@@ -94,7 +117,7 @@ int IFL_CraftFuzzedMsg(IFL *ifl, uint8_t **out, uint32_t *out_len)
                 IFL_UpdateBuf(&ibuf, NULL, cur->field.size);
             }
         }
-        IFL_FieldPostUpdate(cur);
+        IFL_FieldPostUpdate(cur, &ibuf);
     }
     *out = ibuf.buf;
     *out_len = ibuf.data_len;

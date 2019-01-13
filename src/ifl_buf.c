@@ -6,8 +6,7 @@
 #include "ifl_util.h"
 #include "ifl_buf.h"
 
-/*
- * @Description: Creates a buffer of default size and updates IFL_BUF with length.
+/* @Description: Creates a buffer of default size and updates IFL_BUF with length.
  * This does not allocates memory for structure IFL_BUF.
  *
  * @Return: Returns 0 in case of success or else -1
@@ -22,14 +21,14 @@ int IFL_InitBuf(IFL_BUF *ibuf)
             goto err;
         }
         ibuf->buf_size = IFL_INIT_BUF_SIZE;
+        TRACE("Inited IFL_BUF=%p", ibuf->buf);
         return 0;
     }
 err:
     return -1;
 }
 
-/*
- * @Description: Increases the buffer for the requested size. If the requested size
+/* @Description: Increases the buffer for the requested size. If the requested size
  * is lesser than minimum size then it increases for the minimum size
  *
  * @Return: Returns 0 in case of success or else -1
@@ -54,14 +53,14 @@ int IFL_ResizeBuf(IFL_BUF *ibuf, uint32_t additional_size)
         ibuf->buf = new_buf;
         ibuf->buf_size += additional_size;
         new_buf = NULL;
+        TRACE("Resized IFL_BUF=%p to size=%u", ibuf->buf, ibuf->buf_size);
         return 0;
     }
 err:
     return -1;
 }
 
-/*
- * @Description: Updates the buffer with passed buffer and increases the data length.
+/* @Description: Updates the buffer with passed buffer and increases the data length.
  * If available size is not sufficient resizes it. If NULL buffer is passed then increments
  * only the length in IFL_BUF.
  *
@@ -76,14 +75,24 @@ int IFL_UpdateBuf(IFL_BUF *ibuf, uint8_t *data, uint32_t data_len)
         }
     }
     if (data) {
+        TRACE("Updating IFL_BUF=%p at index=%d buf_idx=%p", ibuf->buf, ibuf->data_len,
+               ibuf->buf + ibuf->data_len);
         memcpy(ibuf->buf + ibuf->data_len, data, data_len);
     }
     ibuf->data_len += data_len;
     return 0;
 }
 
-/*
- * @Description: Releases the buffer. Not the IFL_BUF structure memory.
+/* @Description: Get buffer pointer to the next byte in which update requires
+ *
+ * @Return: Returns valid buffer pointer
+ */
+uint8_t *IFL_GetOffsettedBufPos(IFL_BUF *ibuf)
+{
+    return (ibuf->buf + ibuf->data_len);
+}
+
+/* @Description: Releases the buffer. Not the IFL_BUF structure memory.
  *
  * @Return: void
  */

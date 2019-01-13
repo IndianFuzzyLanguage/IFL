@@ -21,6 +21,8 @@ int IFL_ResizeBuf(IFL_BUF *ibuf, uint32_t additional_size);
 
 int IFL_UpdateBuf(IFL_BUF *ibuf, uint8_t *data, uint32_t data_len);
 
+uint8_t *IFL_GetOffsettedBufPos(IFL_BUF *ibuf);
+
 void IFL_FiniBuf(IFL_BUF *ibuf);
 
 #ifdef __cplusplus

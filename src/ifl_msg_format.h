@@ -96,6 +96,10 @@ void IFL_FiniFieldStack(IFL_FIELD_STACK *stack);
 
 IFL_MSG_FIELD *IFL_GetNextField(IFL_MSG_FIELD *msg, IFL_FIELD_STACK *stack);
 
+IFL_MSG_FIELD *IFL_GetNthChild(IFL_MSG_FIELD *parent, uint16_t child_num);
+
+IFL_MSG_FIELD *IFL_GetLengthField(IFL_MSG_FIELD *cur);
+
 #ifdef __cplusplus
 }
 #endif

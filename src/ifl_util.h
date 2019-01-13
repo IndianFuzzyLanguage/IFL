@@ -13,6 +13,8 @@ extern "C" {
         } \
     } while(0)
 
+void IFL_Host2Network(uint8_t *buf, uint32_t buf_size, uint32_t value);
+
 #ifdef __cplusplus
 }
 #endif
