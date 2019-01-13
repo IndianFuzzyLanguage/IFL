@@ -7,6 +7,7 @@
 #include "ifl_buf.h"
 #include "ifl_msg_format.h"
 
+
 /* @Description: This function indicates which all field requires size update based on 
  * child. If its a LV or TLV or S then field size needs update based on child size.
  *
@@ -82,26 +83,13 @@ void IFL_FieldPreUpdate(IFL_MSG_FIELD *cur)
     }
 }
 
-/* @Description: This function crafts the fuzzed msg.
- *
- * @Return: Returns 0 incase of success and -1 incase of failure
- *
- */
-int IFL_CraftFuzzedMsg(IFL *ifl, uint8_t **out, uint32_t *out_len)
+int IFL_FuzzGenDefaultVal(IFL *ifl, IFL_BUF *ibuf)
 {
     IFL_MSG_FIELD *cur;
-    IFL_BUF ibuf = {0};
     IFL_FIELD_STACK *stack;
 
     stack = IFL_InitFieldStack(ifl->msg_format);
-    if (!stack) {
-        ERR("Field stack init failed");
-        return -1;
-    }
-    if (IFL_InitBuf(&ibuf)) {
-        ERR("Initing IFL Buf Failed");
-        goto err;
-    }
+    IFL_CHK_ERR((!stack), "Field stack init failed", return -1);
     while ((cur = IFL_GetNextField(ifl->msg_format, stack))) {
         IFL_FieldPreUpdate(cur);
         if (cur->depth) {
@@ -111,27 +99,45 @@ int IFL_CraftFuzzedMsg(IFL *ifl, uint8_t **out, uint32_t *out_len)
             TRACE("Updating leaf field=%s id=%d, size=%d, type=%d", cur->field.name, cur->field.id,
                         cur->field.size, cur->field.type);
             if (cur->field.default_val_type == IFL_MSG_FIELD_VAL_TYPE_HEX) {
-                IFL_UpdateBuf(&ibuf, cur->field.default_val.hex, cur->field.size);
+                IFL_UpdateBuf(ibuf, cur->field.default_val.hex, cur->field.size);
             } else if (cur->field.default_val_type == IFL_MSG_FIELD_VAL_TYPE_UINT) {
-                IFL_Host2Network(IFL_GetOffsettedBufPos(&ibuf), cur->field.size,
+                IFL_Host2Network(IFL_GetOffsettedBufPos(ibuf), cur->field.size,
                                  cur->field.default_val.u32);
-                IFL_UpdateBuf(&ibuf, NULL, cur->field.size);
+                IFL_UpdateBuf(ibuf, NULL, cur->field.size);
             } else {
-                IFL_UpdateBuf(&ibuf, NULL, cur->field.size);
+                IFL_UpdateBuf(ibuf, NULL, cur->field.size);
             }
         }
-        IFL_FieldPostUpdate(cur, &ibuf);
+        IFL_FieldPostUpdate(cur, ibuf);
+    }
+    IFL_FiniFieldStack(stack);
+    /*TODO need to remove this log */
+    IFL_LogMsgFormat(ifl->msg_format, IFL_LOG_TRACE);
+    return 0;
+/*err:
+    IFL_FiniFieldStack(stack);
+    return -1;*/
+}
+/* @Description: This function crafts the fuzzed msg.
+ *
+ * @Return: Returns 0 incase of success and -1 incase of failure
+ *
+ */
+int IFL_CraftFuzzedMsg(IFL *ifl, uint8_t **out, uint32_t *out_len)
+{
+    IFL_BUF ibuf = {0};
+    IFL_CHK_ERR(IFL_InitBuf(&ibuf), "Initing IFL Buf Failed", goto err);
+    if (IFL_FuzzGenDefaultVal(ifl, &ibuf)) {
+        ERR("Fuzz generator for default value failed");
+        goto err;
     }
     *out = ibuf.buf;
     *out_len = ibuf.data_len;
     memset(&ibuf, 0, sizeof(ibuf));
-    IFL_FiniFieldStack(stack);
-    IFL_LogMsgFormat(ifl->msg_format, IFL_LOG_TRACE);
     ifl->state.fuzzed_id++;
     ifl->state.flags |= IFL_FUZZ_STATE_FINISHED;
     return 0;
 err:
-    IFL_FiniFieldStack(stack);
     IFL_FiniBuf(&ibuf);
     return -1;
 }
