@@ -27,7 +27,11 @@ typedef int (*IFL_FUZZ_GENERATOR)(IFL *ifl, IFL_BUF *ibuf);
 typedef struct ifl_fuzz_type_handler_st {
     IFL_FUZZ_TYPE fuzz_type;
     IFL_FUZZ_GENERATOR fuzz_generator;
-}IFL_FUZZ_TYPE_HANLDER;
+}IFL_FUZZ_TYPE_HANDLER;
+
+int IFL_FuzzGenDefaultValAndZero(IFL *ifl, IFL_BUF *ibuf);
+
+int IFL_FuzzGenDefaultValAndRand(IFL *ifl, IFL_BUF *ibuf);
 
 int IFL_CraftFuzzedMsg(IFL *ifl, uint8_t **out, uint32_t *out_len);
 

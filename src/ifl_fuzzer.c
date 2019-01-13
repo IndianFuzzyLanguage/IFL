@@ -7,6 +7,10 @@
 #include "ifl_buf.h"
 #include "ifl_msg_format.h"
 
+IFL_FUZZ_TYPE_HANDLER g_fuzz_genrator[IFL_FUZZ_TYPE_MAX] = {
+    {IFL_FUZZ_TYPE_DEFAULT_VAL_AND_ZERO, IFL_FuzzGenDefaultValAndZero},
+    {IFL_FUZZ_TYPE_DEFAULT_VAL_AND_RAND, IFL_FuzzGenDefaultValAndRand},
+};
 
 /* @Description: This function indicates which all field requires size update based on 
  * child. If its a LV or TLV or S then field size needs update based on child size.
@@ -83,10 +87,11 @@ void IFL_FieldPreUpdate(IFL_MSG_FIELD *cur)
     }
 }
 
-int IFL_FuzzGenDefaultVal(IFL *ifl, IFL_BUF *ibuf)
+int IFL_FuzzGenDefaultVal(IFL *ifl, IFL_BUF *ibuf, uint32_t fuzz_type)
 {
     IFL_MSG_FIELD *cur;
     IFL_FIELD_STACK *stack;
+    uint8_t *rand = NULL;
 
     stack = IFL_InitFieldStack(ifl->msg_format);
     IFL_CHK_ERR((!stack), "Field stack init failed", return -1);
@@ -105,7 +110,11 @@ int IFL_FuzzGenDefaultVal(IFL *ifl, IFL_BUF *ibuf)
                                  cur->field.default_val.u32);
                 IFL_UpdateBuf(ibuf, NULL, cur->field.size);
             } else {
-                IFL_UpdateBuf(ibuf, NULL, cur->field.size);
+                if (fuzz_type == IFL_FUZZ_TYPE_DEFAULT_VAL_AND_RAND) {
+                    /* TODO  Need to generate randome */
+                    rand = NULL;
+                }
+                IFL_UpdateBuf(ibuf, rand, cur->field.size);
             }
         }
         IFL_FieldPostUpdate(cur, ibuf);
@@ -118,7 +127,26 @@ int IFL_FuzzGenDefaultVal(IFL *ifl, IFL_BUF *ibuf)
     IFL_FiniFieldStack(stack);
     return -1;*/
 }
-/* @Description: This function crafts the fuzzed msg.
+
+/* @Description: Generates fuzzed msg with default value and keep zero for others
+ *
+ * @Return: Returns 0 incase of success or else -1
+ */
+int IFL_FuzzGenDefaultValAndZero(IFL *ifl, IFL_BUF *ibuf)
+{
+    return IFL_FuzzGenDefaultVal(ifl, ibuf, IFL_FUZZ_TYPE_DEFAULT_VAL_AND_ZERO);
+}
+
+/* @Description: Generates fuzzed msg with default value and keep zero for others
+ *
+ * @Return: Returns 0 incase of success or else -1
+ */
+int IFL_FuzzGenDefaultValAndRand(IFL *ifl, IFL_BUF *ibuf)
+{
+    return IFL_FuzzGenDefaultVal(ifl, ibuf, IFL_FUZZ_TYPE_DEFAULT_VAL_AND_RAND);
+}
+
+/* @Description: Crafts the fuzzed msg.
  *
  * @Return: Returns 0 incase of success and -1 incase of failure
  *
@@ -127,7 +155,7 @@ int IFL_CraftFuzzedMsg(IFL *ifl, uint8_t **out, uint32_t *out_len)
 {
     IFL_BUF ibuf = {0};
     IFL_CHK_ERR(IFL_InitBuf(&ibuf), "Initing IFL Buf Failed", goto err);
-    if (IFL_FuzzGenDefaultVal(ifl, &ibuf)) {
+    if (IFL_FuzzGenDefaultValAndZero(ifl, &ibuf)) {
         ERR("Fuzz generator for default value failed");
         goto err;
     }
