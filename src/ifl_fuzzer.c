@@ -1,7 +1,7 @@
 #include <string.h>
 
 #include "ifl_types.h"
-#include "ifl_msg.h"
+#include "ifl_fuzzer.h"
 #include "ifl_log.h"
 #include "ifl_util.h"
 #include "ifl_buf.h"
