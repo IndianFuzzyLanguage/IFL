@@ -2,7 +2,7 @@
 #include "ifl_log.h"
 #include "ifl_conf_parser.h"
 #include "ifl_msg_format.h"
-#include "ifl_msg.h"
+#include "ifl_fuzzer.h"
 #include "ifl_util.h"
 
 IFL *IFL_Init(const char *xml_file_name, const char *xml_content)
