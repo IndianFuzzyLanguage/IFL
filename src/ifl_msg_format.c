@@ -56,6 +56,12 @@ void IFL_FiniFieldStack(IFL_FIELD_STACK *stack)
     free(stack);
 }
 
+/* @Description: This function traverses the Tree in Depth First Search and returns each
+ * node one by one.
+ *
+ * @Return: Returns the current selected node. If traversal finishes returns NULL
+ *
+ */
 IFL_MSG_FIELD *IFL_GetNextField(IFL_MSG_FIELD *msg, IFL_FIELD_STACK *stack)
 {
     IFL_MSG_FIELD *cur;
@@ -93,6 +99,47 @@ IFL_MSG_FIELD *IFL_GetNextField(IFL_MSG_FIELD *msg, IFL_FIELD_STACK *stack)
         }
     }
     return cur;
+}
+
+/* @Description: Get nth child of a parent
+ *
+ * @Return: If the parent contains valid nth child returns or else NULL
+ */
+IFL_MSG_FIELD *IFL_GetNthChild(IFL_MSG_FIELD *parent, uint16_t child_num)
+{
+    int i = 1;
+    IFL_MSG_FIELD *child = parent->tree.child;
+    while (child) {
+        if (i == child_num) {
+            return child;
+        }
+        if (child->list.next == parent->tree.child) {
+            DBG("Not found child num=%d in parent=%p", child_num, parent);
+            return NULL;
+        }
+        child = child->list.next;
+        i++;
+    }
+    return NULL;
+}
+
+/* @Description: If a parent is of type LV or TLV then this function helps to get the length field
+ * of parent
+ *
+ * @Return: Returns Length Field of the cur field's parent
+ */
+IFL_MSG_FIELD *IFL_GetLengthField(IFL_MSG_FIELD *cur)
+{
+    IFL_MSG_FIELD *parent = cur->tree.parent;
+    if (parent) {
+        switch (parent->field.type) {
+            case IFL_MSG_FIELD_TYPE_LV:
+                return IFL_GetNthChild(parent, 1);
+            case IFL_MSG_FIELD_TYPE_TLV:
+                return IFL_GetNthChild(parent, 2);
+        }
+    }
+    return NULL;
 }
 
 char *IFL_GetFieldDefaultValStr(IFL_MSG_FIELD *field, char *out, uint16_t out_size)

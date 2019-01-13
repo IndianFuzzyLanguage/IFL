@@ -34,7 +34,14 @@ void IFL_Fini(IFL *ifl)
 
 int IFL_GetFuzzedMsg(IFL *ifl, uint8_t **out, uint32_t *out_len)
 {
-    return IFL_CraftFuzzedMsg(ifl, out, out_len);
+    *out = NULL;
+    *out_len = 0;
+    if (!(ifl->state.flags & IFL_FUZZ_STATE_FINISHED)) {
+        return IFL_CraftFuzzedMsg(ifl, out, out_len);
+    } else {
+        DBG("Fuzzing for msg=%d finished", ifl->msg_id);
+        return 0;
+    }
 }
 
 void IFL_FreeFuzzedMsg(uint8_t *ifl_msg)
