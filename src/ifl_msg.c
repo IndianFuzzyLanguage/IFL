@@ -109,11 +109,13 @@ int IFL_CraftFuzzedMsg(IFL *ifl, uint8_t **out, uint32_t *out_len)
                         cur->field.type);
         } else {
             /* TODO Need to encode in network order */
-            TRACE("Updated leaf field=%s id=%d, size=%d, type=%d", cur->field.name, cur->field.id,
+            TRACE("Updating leaf field=%s id=%d, size=%d, type=%d", cur->field.name, cur->field.id,
                         cur->field.size, cur->field.type);
             if (cur->field.default_val_type == IFL_MSG_FIELD_VAL_TYPE_HEX) {
                 IFL_UpdateBuf(&ibuf, cur->field.default_val.hex, cur->field.size);
             } else {
+                IFL_Host2Network(IFL_GetOffsettedBufPos(&ibuf), cur->field.size,
+                                 cur->field.default_val.u32);
                 IFL_UpdateBuf(&ibuf, NULL, cur->field.size);
             }
         }
