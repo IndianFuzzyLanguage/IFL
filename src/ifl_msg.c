@@ -59,14 +59,17 @@ void IFL_FieldPreUpdate(IFL_MSG_FIELD *cur)
     }
 }
 
+/* @Description: This function crafts the fuzzed msg.
+ *
+ * @Return: Returns 0 incase of success and -1 incase of failure
+ *
+ */
 int IFL_CraftFuzzedMsg(IFL *ifl, uint8_t **out, uint32_t *out_len)
 {
     IFL_MSG_FIELD *cur;
     IFL_BUF ibuf = {0};
     IFL_FIELD_STACK *stack;
 
-    *out = NULL;
-    *out_len = 0;
     stack = IFL_InitFieldStack(ifl->msg_format);
     if (!stack) {
         ERR("Field stack init failed");
@@ -98,6 +101,8 @@ int IFL_CraftFuzzedMsg(IFL *ifl, uint8_t **out, uint32_t *out_len)
     memset(&ibuf, 0, sizeof(ibuf));
     IFL_FiniFieldStack(stack);
     IFL_LogMsgFormat(ifl->msg_format, IFL_LOG_TRACE);
+    ifl->state.fuzzed_id++;
+    ifl->state.flags |= IFL_FUZZ_STATE_FINISHED;
     return 0;
 err:
     IFL_FiniFieldStack(stack);
