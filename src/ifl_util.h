@@ -15,6 +15,8 @@ extern "C" {
 
 void IFL_Host2Network(uint8_t *buf, uint32_t buf_size, uint32_t value);
 
+void IFL_GenRandBytes(uint8_t *out, uint32_t size);
+
 #ifdef __cplusplus
 }
 #endif

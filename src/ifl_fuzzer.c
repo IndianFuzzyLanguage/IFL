@@ -7,7 +7,7 @@
 #include "ifl_buf.h"
 #include "ifl_msg_format.h"
 
-IFL_FUZZ_TYPE_HANDLER g_fuzz_genrator[IFL_FUZZ_TYPE_MAX] = {
+IFL_FUZZ_TYPE_HANDLER g_fuzz_generator[IFL_FUZZ_TYPE_MAX] = {
     {IFL_FUZZ_TYPE_DEFAULT_VAL_AND_ZERO, IFL_FuzzGenDefaultValAndZero},
     {IFL_FUZZ_TYPE_DEFAULT_VAL_AND_RAND, IFL_FuzzGenDefaultValAndRand},
 };
@@ -112,9 +112,16 @@ int IFL_FuzzGenDefaultVal(IFL *ifl, IFL_BUF *ibuf, uint32_t fuzz_type)
             } else {
                 if (fuzz_type == IFL_FUZZ_TYPE_DEFAULT_VAL_AND_RAND) {
                     /* TODO  Need to generate randome */
-                    rand = NULL;
+                    rand = calloc(1, cur->field.size);
+                    if (rand) {
+                        IFL_GenRandBytes(rand, cur->field.size);
+                    }
                 }
                 IFL_UpdateBuf(ibuf, rand, cur->field.size);
+                if (rand) {
+                    free(rand);
+                    rand = NULL;
+                }
             }
         }
         IFL_FieldPostUpdate(cur, ibuf);
@@ -155,7 +162,7 @@ int IFL_CraftFuzzedMsg(IFL *ifl, uint8_t **out, uint32_t *out_len)
 {
     IFL_BUF ibuf = {0};
     IFL_CHK_ERR(IFL_InitBuf(&ibuf), "Initing IFL Buf Failed", goto err);
-    if (IFL_FuzzGenDefaultValAndZero(ifl, &ibuf)) {
+    if (g_fuzz_generator[ifl->state.fuzzer_type].fuzz_generator(ifl, &ibuf)) {
         ERR("Fuzz generator for default value failed");
         goto err;
     }
@@ -163,7 +170,10 @@ int IFL_CraftFuzzedMsg(IFL *ifl, uint8_t **out, uint32_t *out_len)
     *out_len = ibuf.data_len;
     memset(&ibuf, 0, sizeof(ibuf));
     ifl->state.fuzzed_id++;
-    ifl->state.flags |= IFL_FUZZ_STATE_FINISHED;
+    ifl->state.fuzzer_type++;
+    if (ifl->state.fuzzer_type == IFL_FUZZ_TYPE_MAX) {
+        ifl->state.flags |= IFL_FUZZ_STATE_FINISHED;
+    }
     return 0;
 err:
     IFL_FiniBuf(&ibuf);
