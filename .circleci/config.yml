@@ -1,8 +1,8 @@
 version: 2
 jobs:
     build:
-        docket:
-            - image: circleci/ifl_0.0.1
+        machine:
+            enabled: true
         steps:
             - checkout
             - run: 
