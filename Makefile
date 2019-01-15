@@ -3,6 +3,11 @@ BIN_DIR=bin
 OBJ_DIR=obj
 STATIC_LIB=$(BIN_DIR)/libifl.a
 TARGET=$(STATIC_LIB)
+DEPENDENCY_DIR=dependency
+EXPAT=libexpat
+EXPAT_DIR=$(DEPENDENCY_DIR)/$(EXPAT)
+LIB_EXPAT=$(EXPAT_DIR)/expat/lib/.libs/libexpat.a
+DEPENDENCY=$(LIB_EXPAT)
 
 SRCS=$(wildcard $(SRC_DIR)/*.c)
 OBJS=$(addprefix $(OBJ_DIR)/,$(SRCS:.c=.o))
@@ -11,7 +16,6 @@ CC = gcc
 AR = ar
 RM = rm
 
-EXPAT_DIR=dependency/libexpat
 CFLAGS = -g -ggdb -O0 -Wall -Werror
 LFLAGS = 
 
@@ -22,10 +26,15 @@ CFLAGS += $(INC)
 
 all: init_setup $(TARGET)
 
-init_setup:
+$(LIB_EXPAT):
+	echo "expatlib is $(LIB_EXPAT)"
+	cd $(DEPENDENCY_DIR) && tar -zxvf $(EXPAT).tgz
+	cd $(EXPAT_DIR)/expat && ./buildconf.sh && ./configure && make
+
+init_setup: $(DEPENDENCY)
 	@mkdir -p $(OBJ_DIR)/$(SRC_DIR)
 	@mkdir -p $(BIN_DIR)
-	@cp $(EXPAT_DIR)/expat/lib/.libs/libexpat.a $(BIN_DIR)/.
+	@cp $(LIB_EXPAT) $(BIN_DIR)/.
 
 $(OBJ_DIR)/%.o:%.c
 	$(CC) $(CFLAGS) -o $@ -c $^
