@@ -29,7 +29,8 @@ all: init_setup $(TARGET)
 $(LIB_EXPAT):
 	echo "expatlib is $(LIB_EXPAT)"
 	cd $(DEPENDENCY_DIR) && tar -zxvf $(EXPAT).tgz
-	cd $(EXPAT_DIR)/expat && ./buildconf.sh && ./configure && make
+	cd $(EXPAT_DIR)/expat && ./buildconf.sh && ./configure
+	cd $(EXPAT_DIR)/expat/lib && make
 
 init_setup: $(DEPENDENCY)
 	@mkdir -p $(OBJ_DIR)/$(SRC_DIR)
