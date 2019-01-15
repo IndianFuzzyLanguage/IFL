@@ -34,6 +34,6 @@ void IFL_GenRandBytes(uint8_t *out, uint32_t size)
         } else {
             size_to_copy = sizeof(int);
         }
-        memcpy(out, (uint8_t *)&rand_val, size_to_copy);
+        memcpy(out + i, (uint8_t *)&rand_val, size_to_copy);
     }
 }

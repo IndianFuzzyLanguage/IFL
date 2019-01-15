@@ -111,7 +111,6 @@ int IFL_FuzzGenDefaultVal(IFL *ifl, IFL_BUF *ibuf, uint32_t fuzz_type)
                 IFL_UpdateBuf(ibuf, NULL, cur->field.size);
             } else {
                 if (fuzz_type == IFL_FUZZ_TYPE_DEFAULT_VAL_AND_RAND) {
-                    /* TODO  Need to generate randome */
                     rand = calloc(1, cur->field.size);
                     if (rand) {
                         IFL_GenRandBytes(rand, cur->field.size);
