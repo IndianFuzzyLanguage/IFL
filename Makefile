@@ -16,7 +16,13 @@ CC = gcc
 AR = ar
 RM = rm
 
-CFLAGS = -g -ggdb -O0 -Wall -Werror
+ifeq ($(NOSAN),1)
+	SAN_CFLAGS=
+else
+	SAN_CFLAGS= -fsanitize=address
+endif
+
+CFLAGS = -g -ggdb -O0 -Wall -Werror $(SAN_CFLAGS) -fstack-protector-all
 LFLAGS = 
 
 INC = -I ./src -I ./include -I $(EXPAT_DIR)/expat/lib
