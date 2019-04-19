@@ -154,8 +154,6 @@ int IFL_FuzzGenDefaultVal(IFL *ifl, IFL_BUF *ibuf, uint32_t fuzz_type)
         }
     }
     IFL_FiniFieldStack(stack);
-    /*TODO need to remove this log */
-    IFL_LogMsgFormat(ifl->msg_format, IFL_LOG_TRACE);
     return 0;
 err:
     IFL_FiniFieldStack(stack);
