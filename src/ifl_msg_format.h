@@ -23,11 +23,13 @@ extern "C" {
 #define IFL_MSG_FIELD_TYPE_LV_STR   "LV"
 #define IFL_MSG_FIELD_TYPE_TLV_STR  "TLV"
 #define IFL_MSG_FIELD_TYPE_S_STR    "S"
+#define IFL_MSG_FIELD_TYPE_A_STR    "A"
 
 #define IFL_MSG_FIELD_TYPE_V        1
 #define IFL_MSG_FIELD_TYPE_LV       2
 #define IFL_MSG_FIELD_TYPE_TLV      3
 #define IFL_MSG_FIELD_TYPE_S        4
+#define IFL_MSG_FIELD_TYPE_A        5
 
 #define IFL_MSG_FIELD_ATTR_ID       "id"
 #define IFL_MSG_FIELD_ATTR_NAME     "name"

@@ -243,6 +243,8 @@ int IFL_ParseFieldAttrType(IFL_MSG_FIELD *field, const char *type)
         field->field.type = IFL_MSG_FIELD_TYPE_TLV;
     } else if (!strcmp(type, IFL_MSG_FIELD_TYPE_S_STR)) {
         field->field.type = IFL_MSG_FIELD_TYPE_S;
+    } else if (!strcmp(type, IFL_MSG_FIELD_TYPE_A_STR)) {
+        field->field.type = IFL_MSG_FIELD_TYPE_A;
     } else {
         ERR("Unsupported field type=%s", type);
         return -1;
