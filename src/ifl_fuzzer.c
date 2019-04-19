@@ -26,7 +26,10 @@ int IFL_IsFieldSizeUpdateRequired(IFL_MSG_FIELD *field)
             return 1;
         case IFL_MSG_FIELD_TYPE_S:
             return 1;
+        case IFL_MSG_FIELD_TYPE_V:
+            return 0;
         default:
+            ERR("Unknown type=%d\n", field->field.type);
             return 0;
     }
     return 0;
@@ -54,16 +57,25 @@ void IFL_FieldPostUpdate(IFL_MSG_FIELD *cur, IFL_BUF *ibuf)
 {
     IFL_MSG_FIELD *parent = cur->tree.parent;
     IFL_MSG_FIELD *length_field_of_parent;
+    if (cur->field.size == 0) {
+        /* If current field is LV, TLV or S, length might be zero. */
+        /* If current field len is zero, then no need to update parent's and parent */
+        /* sibling length. */
+        return;
+    }
+    TRACE("Need to update current field=%s size=%d", cur->field.name, cur->field.size);
     /* 1) Adds child size to all the parents of type LV, TLV and S */
     while (parent) {
         if (IFL_IsFieldSizeUpdateRequired(parent)) {
             parent->field.size += cur->field.size;
-            TRACE("Field=%s updated size=%u", parent->field.name, parent->field.size);
+            TRACE("Parent Field=%s of %s, updated size=%u", parent->field.name,
+                    cur->field.name, parent->field.size);
             /* 2) If parent field is "V" field of LV or TLV grand parent, then update length */
             /* in previous field's value of parent */
             length_field_of_parent = IFL_GetLengthField(parent);
             if ((length_field_of_parent) && (length_field_of_parent == parent->list.previous)) {
-                TRACE("Field=%s updating length field", parent->field.name);
+                TRACE("Parent Field=%s of %s, updating length field=%s", parent->field.name,
+                        cur->field.name, length_field_of_parent->field.name);
                 IFL_UpdatePrevLengthField((IFL_GetOffsettedBufPos(ibuf)
                                     - (parent->field.size + length_field_of_parent->field.size)),
                                     length_field_of_parent->field.size, parent->field.size);

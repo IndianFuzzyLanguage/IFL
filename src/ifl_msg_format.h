@@ -71,6 +71,10 @@ struct ifl_msg_field_st {
     IFL_TREE_STATE tree;
     IFL_LIST_STATE list;
     IFL_MSG_FIELD_CONTENT field;
+    /* For leaf node this depth holds 0, for non leaf node this depth holds the */
+    /* number of hop to reach a leaf node */
+    /* Only leaf node contains the actual field of type V, all other node contains */
+    /* the field of type LV, TLV or S */
     uint16_t depth;
 };
 
