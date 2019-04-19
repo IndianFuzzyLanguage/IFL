@@ -53,36 +53,50 @@ void IFL_UpdatePrevLengthField(uint8_t *buf, uint32_t field_size, uint32_t value
  *
  * @Return: Void
  */
-void IFL_FieldPostUpdate(IFL_MSG_FIELD *cur, IFL_BUF *ibuf)
+int IFL_FieldPostUpdate(IFL_MSG_FIELD *cur, IFL_BUF *ibuf)
 {
-    IFL_MSG_FIELD *parent = cur->tree.parent;
+    IFL_MSG_FIELD *parent = cur;
     IFL_MSG_FIELD *length_field_of_parent;
+    uint8_t *len_field_buf;
     if (cur->field.size == 0) {
         /* If current field is LV, TLV or S, length might be zero. */
         /* If current field len is zero, then no need to update parent's and parent */
         /* sibling length. */
-        return;
+        return 0;
     }
     TRACE("Need to update current field=%s size=%d", cur->field.name, cur->field.size);
-    /* 1) Adds child size to all the parents of type LV, TLV and S */
     while (parent) {
+        /* 1) Adds child size to all the parents of type LV, TLV and S */
         if (IFL_IsFieldSizeUpdateRequired(parent)) {
-            parent->field.size += cur->field.size;
-            TRACE("Parent Field=%s of %s, updated size=%u", parent->field.name,
-                    cur->field.name, parent->field.size);
-            /* 2) If parent field is "V" field of LV or TLV grand parent, then update length */
-            /* in previous field's value of parent */
-            length_field_of_parent = IFL_GetLengthField(parent);
-            if ((length_field_of_parent) && (length_field_of_parent == parent->list.previous)) {
-                TRACE("Parent Field=%s of %s, updating length field=%s", parent->field.name,
-                        cur->field.name, length_field_of_parent->field.name);
-                IFL_UpdatePrevLengthField((IFL_GetOffsettedBufPos(ibuf)
-                                    - (parent->field.size + length_field_of_parent->field.size)),
-                                    length_field_of_parent->field.size, parent->field.size);
+            if (parent != cur) {
+                parent->field.size += cur->field.size;
+                TRACE("Parent Field=%s updated size=%u", parent->field.name, parent->field.size);
+            }
+        }
+        /* 2) If parent field is "V" field of LV or TLV grand parent, then update length */
+        /* in previous field's value of parent */
+        length_field_of_parent = IFL_GetLengthField(parent);
+        if ((length_field_of_parent) && (length_field_of_parent == parent->list.previous)) {
+            len_field_buf = IFL_SeekBuf(ibuf,
+                            -(parent->field.size + length_field_of_parent->field.size));
+            if (len_field_buf == NULL) {
+                ERR("Invalid seeked buffer for length field update of field=%s",
+                        cur->field.name);
+                return -1;
+            }
+            IFL_UpdatePrevLengthField(len_field_buf, length_field_of_parent->field.size, 
+                                      parent->field.size);
+            TRACE("Length field=%s of Parent Field=%s, value updated to=%d",
+                   length_field_of_parent->field.name, parent->field.name, parent->field.size);
+        } else {
+            if (length_field_of_parent) {
+                ERR("Abnormal case, length field=%s is not suitable for field=%s",
+                        length_field_of_parent->field.name, parent->field.name);
             }
         }
         parent = parent->tree.parent;
     }
+    return 0;
 }
 
 /* @Description: This function performs some pre update to field before start using for
@@ -135,15 +149,17 @@ int IFL_FuzzGenDefaultVal(IFL *ifl, IFL_BUF *ibuf, uint32_t fuzz_type)
                 }
             }
         }
-        IFL_FieldPostUpdate(cur, ibuf);
+        if (IFL_FieldPostUpdate(cur, ibuf)) {
+            goto err;
+        }
     }
     IFL_FiniFieldStack(stack);
     /*TODO need to remove this log */
     IFL_LogMsgFormat(ifl->msg_format, IFL_LOG_TRACE);
     return 0;
-/*err:
+err:
     IFL_FiniFieldStack(stack);
-    return -1;*/
+    return -1;
 }
 
 /* @Description: Generates fuzzed msg with default value and keep zero for others
