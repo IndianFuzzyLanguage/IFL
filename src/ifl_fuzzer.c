@@ -20,13 +20,18 @@ IFL_FUZZ_TYPE_HANDLER g_fuzz_generator[IFL_FUZZ_TYPE_MAX] = {
 int IFL_IsFieldSizeUpdateRequired(IFL_MSG_FIELD *field)
 {
     switch (field->field.type) {
+        case IFL_MSG_FIELD_TYPE_V:
+            return 0;
         case IFL_MSG_FIELD_TYPE_LV:
             return 1;
         case IFL_MSG_FIELD_TYPE_TLV:
             return 1;
         case IFL_MSG_FIELD_TYPE_S:
             return 1;
+        case IFL_MSG_FIELD_TYPE_A:
+            return 1;
         default:
+            ERR("Unknown type=%d\n", field->field.type);
             return 0;
     }
     return 0;
@@ -44,33 +49,55 @@ void IFL_UpdatePrevLengthField(uint8_t *buf, uint32_t field_size, uint32_t value
 
 /* @Description: This function performs some Post Update to field after crafting msg.
  * 1) Adds child size to all the parents. This performs to parent of type
- * LV, TLV and S. For others no size update is required on parent based on child.
+ * LV, TLV, S or A. For others no size update is required on parent based on child.
  * 2) If current field's grand parent is of LV or TLV type, then update length in 
  * parent's previous field's (previous sibling) value.
  *
  * @Return: Void
  */
-void IFL_FieldPostUpdate(IFL_MSG_FIELD *cur, IFL_BUF *ibuf)
+int IFL_FieldPostUpdate(IFL_MSG_FIELD *cur, IFL_BUF *ibuf)
 {
-    IFL_MSG_FIELD *parent = cur->tree.parent;
+    IFL_MSG_FIELD *parent = cur;
     IFL_MSG_FIELD *length_field_of_parent;
-    /* 1) Adds child size to all the parents of type LV, TLV and S */
+    uint8_t *len_field_buf;
+    if (cur->field.size == 0) {
+        /* If current field is LV, TLV, S or A, length might be zero. */
+        /* If current field len is zero, then no need to update parent's and parent */
+        /* sibling length. */
+        return 0;
+    }
+    TRACE("Need to update current field=%s size=%d", cur->field.name, cur->field.size);
     while (parent) {
-        if (IFL_IsFieldSizeUpdateRequired(parent)) {
+        /* 1) Adds child size to all the parents of type LV, TLV, S and A */
+        if (parent != cur && IFL_IsFieldSizeUpdateRequired(parent)) {
             parent->field.size += cur->field.size;
-            TRACE("Field=%s updated size=%u", parent->field.name, parent->field.size);
-            /* 2) If parent field is "V" field of LV or TLV grand parent, then update length */
-            /* in previous field's value of parent */
-            length_field_of_parent = IFL_GetLengthField(parent);
-            if ((length_field_of_parent) && (length_field_of_parent == parent->list.previous)) {
-                TRACE("Field=%s updating length field", parent->field.name);
-                IFL_UpdatePrevLengthField((IFL_GetOffsettedBufPos(ibuf)
-                                    - (parent->field.size + length_field_of_parent->field.size)),
-                                    length_field_of_parent->field.size, parent->field.size);
+            TRACE("Parent Field=%s updated size=%u", parent->field.name, parent->field.size);
+        }
+        /* 2) If parent field is "V" field of LV or TLV grand parent, then update length */
+        /* in previous field's value of parent */
+        length_field_of_parent = IFL_GetLengthField(parent);
+        if (length_field_of_parent) {
+            if (length_field_of_parent == parent->list.previous) {
+                len_field_buf = IFL_SeekBuf(ibuf,
+                                -(parent->field.size + length_field_of_parent->field.size));
+                if (len_field_buf == NULL) {
+                    ERR("Invalid seeked buffer for length field update of field=%s",
+                            cur->field.name);
+                    return -1;
+                }
+                IFL_UpdatePrevLengthField(len_field_buf, length_field_of_parent->field.size,
+                                          parent->field.size);
+                TRACE("Length field=%s of Parent Field=%s, value updated to=%d",
+                       length_field_of_parent->field.name, parent->field.name, parent->field.size);
+            } else {
+                /* This case should not happen */
+                ERR("Abnormal case, length field=%s is not suitable for field=%s",
+                        length_field_of_parent->field.name, parent->field.name);
             }
         }
         parent = parent->tree.parent;
     }
+    return 0;
 }
 
 /* @Description: This function performs some pre update to field before start using for
@@ -111,7 +138,6 @@ int IFL_FuzzGenDefaultVal(IFL *ifl, IFL_BUF *ibuf, uint32_t fuzz_type)
                 IFL_UpdateBuf(ibuf, NULL, cur->field.size);
             } else {
                 if (fuzz_type == IFL_FUZZ_TYPE_DEFAULT_VAL_AND_RAND) {
-                    /* TODO  Need to generate randome */
                     rand = calloc(1, cur->field.size);
                     if (rand) {
                         IFL_GenRandBytes(rand, cur->field.size);
@@ -124,15 +150,15 @@ int IFL_FuzzGenDefaultVal(IFL *ifl, IFL_BUF *ibuf, uint32_t fuzz_type)
                 }
             }
         }
-        IFL_FieldPostUpdate(cur, ibuf);
+        if (IFL_FieldPostUpdate(cur, ibuf)) {
+            goto err;
+        }
     }
     IFL_FiniFieldStack(stack);
-    /*TODO need to remove this log */
-    IFL_LogMsgFormat(ifl->msg_format, IFL_LOG_TRACE);
     return 0;
-/*err:
+err:
     IFL_FiniFieldStack(stack);
-    return -1;*/
+    return -1;
 }
 
 /* @Description: Generates fuzzed msg with default value and keep zero for others

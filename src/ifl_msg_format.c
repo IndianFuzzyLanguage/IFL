@@ -173,9 +173,10 @@ void IFL_LogMsgFormat(IFL_MSG_FIELD *msg, uint8_t log_level)
     char val_str[IFL_ELEM_DEFAULT_VAL_DATA_STR_MAX] = {0};
     LOG(log_level, "Msg tree with max depth=%u", msg->depth);
     while ((stack) && (cur = IFL_GetNextField(msg, stack))) {
-        LOG(log_level, "Cur=%p, id=%d, name=%s, size=%d, type=%d, DefaultVal=%s, depth=%d",
-                cur, cur->field.id, cur->field.name, cur->field.size, cur->field.type,
-                IFL_GetFieldDefaultValStr(cur, val_str, sizeof(val_str)), cur->depth);
+        LOG(log_level, "Cur=%p, id=%d, name=%s, size=%d, type=%d, DefaultVal=%s, depth=%d,"
+                "parent=%p", cur, cur->field.id, cur->field.name, cur->field.size,
+                cur->field.type, IFL_GetFieldDefaultValStr(cur, val_str, sizeof(val_str)),
+                cur->depth, cur->tree.parent);
     }
     IFL_FiniFieldStack(stack);
 }
@@ -207,10 +208,29 @@ void IFL_FreeMsgField(IFL_MSG_FIELD *msg_field)
     }
 }
 
+#define MAX_FIELD 100
 void IFL_FreeMsgFormat(IFL_MSG_FIELD *msg_format)
 {
-    /* TODO Need to do all node free here */
-    IFL_FreeMsgField(msg_format);
+    IFL_MSG_FIELD **field_list;
+    IFL_FIELD_STACK *stack;
+    IFL_MSG_FIELD *cur;
+    int count = 0;
+    int i;
+
+    field_list = (IFL_MSG_FIELD **)malloc(sizeof(IFL_MSG_FIELD *) * MAX_FIELD);
+    if (field_list == NULL) {
+        ERR("Malloc failed, msg format is not freed\n");
+        return;
+    }
+    stack = IFL_InitFieldStack(msg_format);
+    while ((stack) && (cur = IFL_GetNextField(msg_format, stack))) {
+        field_list[count++] = cur;
+    }
+    IFL_FiniFieldStack(stack);
+    for (i = 0; i < count; i++) {
+        IFL_FreeMsgField(field_list[i]);
+    }
+    free(field_list);
 }
 
 int IFL_ParseFieldAttrType(IFL_MSG_FIELD *field, const char *type)
@@ -223,6 +243,8 @@ int IFL_ParseFieldAttrType(IFL_MSG_FIELD *field, const char *type)
         field->field.type = IFL_MSG_FIELD_TYPE_TLV;
     } else if (!strcmp(type, IFL_MSG_FIELD_TYPE_S_STR)) {
         field->field.type = IFL_MSG_FIELD_TYPE_S;
+    } else if (!strcmp(type, IFL_MSG_FIELD_TYPE_A_STR)) {
+        field->field.type = IFL_MSG_FIELD_TYPE_A;
     } else {
         ERR("Unsupported field type=%s", type);
         return -1;

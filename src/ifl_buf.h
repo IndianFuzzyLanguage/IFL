@@ -23,6 +23,8 @@ int IFL_UpdateBuf(IFL_BUF *ibuf, uint8_t *data, uint32_t data_len);
 
 uint8_t *IFL_GetOffsettedBufPos(IFL_BUF *ibuf);
 
+uint8_t *IFL_SeekBuf(IFL_BUF *ibuf, int off);
+
 void IFL_FiniBuf(IFL_BUF *ibuf);
 
 #ifdef __cplusplus

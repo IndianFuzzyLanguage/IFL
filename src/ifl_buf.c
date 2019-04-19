@@ -92,6 +92,37 @@ uint8_t *IFL_GetOffsettedBufPos(IFL_BUF *ibuf)
     return (ibuf->buf + ibuf->data_len);
 }
 
+/* @Description: Seek buffer forward or backward and get buffer pointer
+ *
+ * @Return: Valid buffer pointer if seek is of valid offset
+ *          or else NULL pointer
+ */
+uint8_t *IFL_SeekBuf(IFL_BUF *ibuf, int off)
+{
+    uint8_t *buf;
+    uint32_t off_to_seek;
+
+    buf = IFL_GetOffsettedBufPos(ibuf);
+    if (off == 0) {
+        return buf;
+    }
+    off_to_seek = (off < 0) ? -off : off;
+    if (off < 0) {
+        if (ibuf->data_len < off_to_seek) {
+            ERR("Invalid seek=%d for available len=%u", off, ibuf->data_len);
+            return NULL;
+        }
+        return (buf - off_to_seek);
+    } else {
+        if ((ibuf->buf_size - ibuf->data_len) < off_to_seek) {
+            ERR("Invalid seek=%d for available len=%u and size=%u", off,
+                    ibuf->data_len, ibuf->buf_size);
+            return NULL;
+        }
+        return (buf + off_to_seek);
+    }
+}
+
 /* @Description: Releases the buffer. Not the IFL_BUF structure memory.
  *
  * @Return: void
