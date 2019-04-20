@@ -10,6 +10,7 @@
 IFL_FUZZ_TYPE_HANDLER g_fuzz_generator[IFL_FUZZ_TYPE_MAX] = {
     {IFL_FUZZ_TYPE_DEFAULT_VAL_AND_ZERO, IFL_FuzzGenDefaultValAndZero},
     {IFL_FUZZ_TYPE_DEFAULT_VAL_AND_RAND, IFL_FuzzGenDefaultValAndRand},
+    {IFL_FUZZ_TYPE_SAMPLE_BASED, IFL_FuzzSampleBased}
 };
 
 /* @Description: This function indicates which all field requires size update based on 
@@ -154,6 +155,7 @@ int IFL_FuzzGenDefaultVal(IFL *ifl, IFL_BUF *ibuf, uint32_t fuzz_type)
             goto err;
         }
     }
+    ifl->state.cur_mode_fuzz_finished = 1;
     IFL_FiniFieldStack(stack);
     return 0;
 err:
@@ -179,6 +181,15 @@ int IFL_FuzzGenDefaultValAndRand(IFL *ifl, IFL_BUF *ibuf)
     return IFL_FuzzGenDefaultVal(ifl, ibuf, IFL_FUZZ_TYPE_DEFAULT_VAL_AND_RAND);
 }
 
+/* @Description: Generates fuzzed msg based on sample msg
+ *
+ * @Return: Returns 0 incase of success or else -1
+ */
+int IFL_FuzzSampleBased(IFL *ifl, IFL_BUF *buf)
+{
+    return -1;
+}
+
 /* @Description: Crafts the fuzzed msg.
  *
  * @Return: Returns 0 incase of success and -1 incase of failure
@@ -187,6 +198,7 @@ int IFL_FuzzGenDefaultValAndRand(IFL *ifl, IFL_BUF *ibuf)
 int IFL_CraftFuzzedMsg(IFL *ifl, uint8_t **out, uint32_t *out_len)
 {
     IFL_BUF ibuf = {0};
+
     IFL_CHK_ERR(IFL_InitBuf(&ibuf), "Initing IFL Buf Failed", goto err);
     if (g_fuzz_generator[ifl->state.fuzzer_type].fuzz_generator(ifl, &ibuf)) {
         ERR("Fuzz generator for default value failed");
@@ -196,9 +208,12 @@ int IFL_CraftFuzzedMsg(IFL *ifl, uint8_t **out, uint32_t *out_len)
     *out_len = ibuf.data_len;
     memset(&ibuf, 0, sizeof(ibuf));
     ifl->state.fuzzed_id++;
-    ifl->state.fuzzer_type++;
+    if (ifl->state.cur_mode_fuzz_finished) {
+        ifl->state.fuzzer_type++;
+        ifl->state.cur_mode_fuzz_finished = 0;
+    }
     if (ifl->state.fuzzer_type == IFL_FUZZ_TYPE_MAX) {
-        ifl->state.flags |= IFL_FUZZ_STATE_FINISHED;
+        ifl->state.fuzz_finished = 1;
     }
     return 0;
 err:

@@ -7,7 +7,9 @@ extern "C" {
 
 #define IFL_INIT_BUF_SIZE 256
 
-#define IFL_MAX_BUF_SIZE 0x00FFFFFFUL
+#define IFL_MIN_BUF_RESIZE 128
+
+#define IFL_MAX_BUF_SIZE 0x0FFFFFFFUL
 
 typedef struct ifl_buf_st {
     uint8_t *buf;

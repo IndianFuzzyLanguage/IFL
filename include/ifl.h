@@ -16,10 +16,12 @@ extern "C" {
 #define IFL_LOG_TRACE   4
 
 /* Data type should be void pointer */
-#define IFL_CMD_SET_APP_DATA                    1
+#define IFL_CTRL_CMD_SET_APP_DATA                    1
 
 /* Data type should be void double pointer */
-#define IFL_CMD_GET_APP_DATA                    2
+#define IFL_CTRL_CMD_GET_APP_DATA                    2
+
+#define IFL_CTRL_CMD_SET_SAMPLE_MSG                  3
 
 typedef struct ifl_st IFL;
 
@@ -33,7 +35,7 @@ int IFL_GetFuzzedMsg(IFL *ifl, uint8_t **out, uint32_t *out_len);
 
 void IFL_FreeFuzzedMsg(uint8_t *ifl_msg);
 
-int IFL_Ctrl(IFL *ifl, uint32_t cmd, void *data, uint16_t data_len);
+int IFL_Ctrl(IFL *ifl, uint32_t cmd, void *data, uint32_t data_len);
 
 void IFL_SetLogCB(IFL_LOG_CB log_cb);
 
