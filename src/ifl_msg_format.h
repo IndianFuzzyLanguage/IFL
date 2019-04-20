@@ -106,6 +106,8 @@ IFL_MSG_FIELD *IFL_GetNthChild(IFL_MSG_FIELD *parent, uint16_t child_num);
 
 IFL_MSG_FIELD *IFL_GetLengthField(IFL_MSG_FIELD *cur);
 
+int IFL_IsFieldTypeL(IFL_MSG_FIELD *field);
+
 #ifdef __cplusplus
 }
 #endif

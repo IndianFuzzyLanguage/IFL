@@ -32,7 +32,7 @@ int IFL_IsFieldSizeUpdateRequired(IFL_MSG_FIELD *field)
         case IFL_MSG_FIELD_TYPE_A:
             return 1;
         default:
-            ERR("Unknown type=%d\n", field->field.type);
+            ERR("Unknown type=%d", field->field.type);
             return 0;
     }
     return 0;
@@ -90,13 +90,10 @@ int IFL_FieldPostUpdate(IFL_MSG_FIELD *cur, IFL_BUF *ibuf)
                                           parent->field.size);
                 TRACE("Length field=%s of Parent Field=%s, value updated to=%d",
                        length_field_of_parent->field.name, parent->field.name, parent->field.size);
-            } else {
-                /* This case should not happen */
-                ERR("Abnormal case, length field=%s is not suitable for field=%s",
-                        length_field_of_parent->field.name, parent->field.name);
             }
         }
         parent = parent->tree.parent;
+        IFL_PrintBuf(ibuf, "PostUpdate", IFL_LOG_TRACE);
     }
     return 0;
 }
@@ -111,7 +108,7 @@ void IFL_FieldPreUpdate(IFL_MSG_FIELD *cur)
 {
     if ((cur) && (IFL_IsFieldSizeUpdateRequired(cur))) {
         cur->field.size = 0;
-        TRACE("Field=%d size resetted", cur->field.id);
+        TRACE("Field=%s size resetted", cur->field.name);
     }
 }
 
@@ -152,6 +149,7 @@ int IFL_FuzzGenDefaultVal(IFL *ifl, IFL_BUF *ibuf, uint32_t fuzz_type)
             }
         }
         if (IFL_FieldPostUpdate(cur, ibuf)) {
+            ERR("Field post update failed");
             goto err;
         }
     }
@@ -185,15 +183,62 @@ int IFL_FuzzGenDefaultValAndRand(IFL *ifl, IFL_BUF *ibuf)
  *
  * @Return: Returns 0 incase of success or else -1
  */
+int IFL_FuzzSampleBasedInt(IFL *ifl, IFL_BUF *ibuf)
+{
+    IFL_MSG_FIELD *cur;
+    IFL_FIELD_STACK *stack;
+    uint32_t sample_msg_off = 0;
+    uint8_t *data_to_update;
+
+    stack = IFL_InitFieldStack(ifl->msg_format);
+    IFL_CHK_ERR((!stack), "Field stack init failed", return -1);
+    while ((cur = IFL_GetNextField(ifl->msg_format, stack))) {
+        data_to_update = NULL;
+        IFL_FieldPreUpdate(cur);
+        if (cur->depth) {
+            /* No need to do anything for non leaf node */
+            continue;
+        }
+        if (!IFL_IsFieldTypeL(cur)) {
+            TRACE("Updating Non L field=%s", cur->field.name);
+            data_to_update = ifl->sample_msg + sample_msg_off;
+        }
+        IFL_UpdateBuf(ibuf, data_to_update, cur->field.size);
+        sample_msg_off += cur->field.size;
+        if (IFL_FieldPostUpdate(cur, ibuf)) {
+            ERR("Field post update failed");
+            goto err;
+        }
+        IFL_PrintBuf(ibuf, "SampleBasedFuzz", IFL_LOG_TRACE);
+    }
+    IFL_FiniFieldStack(stack);
+    return 0;
+err:
+    IFL_FiniFieldStack(stack);
+    return -1;
+}
+
+/* @Description: Generates fuzzed msg based on sample msg
+ *
+ * @Return: Returns 0 incase of success or else -1
+ */
 int IFL_FuzzSampleBased(IFL *ifl, IFL_BUF *ibuf)
 {
-    if (ifl->sample_msg && ifl->sample_msg_len) {
+    IFL_CHK_ERR((!ifl->sample_msg || !ifl->sample_msg_len), "Sample Msg not available", return -1);
+    if (ifl->state.sample_mode_state.send_sample_msg == 0) {
         if (IFL_UpdateBuf(ibuf, ifl->sample_msg, ifl->sample_msg_len)) {
+            ERR("Sending sample msg failed");
+            goto err;
+        }
+        ifl->state.sample_mode_state.send_sample_msg = 1;
+    } else {
+        if (IFL_FuzzSampleBasedInt(ifl, ibuf)) {
+            ERR("Sample Based fuzz failed");
             goto err;
         }
         ifl->state.cur_mode_fuzz_finished = 1;
-        return 0;
     }
+    return 0;
 err:
     return -1;
 }

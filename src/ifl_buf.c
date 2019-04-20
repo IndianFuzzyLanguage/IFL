@@ -137,3 +137,30 @@ void IFL_FiniBuf(IFL_BUF *ibuf)
     }
 }
 
+/* @Description: Prints Buffer content.
+ *
+ * @Return: Void
+ */
+void IFL_PrintBuf(IFL_BUF *ibuf, const char *name, uint8_t log_level)
+{
+    uint32_t buf_size;
+    int buf_idx = 0;
+    char *buf;
+    int ret;
+    int i;
+
+    buf_size = (ibuf->data_len * 3) + 1;
+    buf = calloc(1, buf_size);
+    IFL_CHK_ERR((buf == NULL), "mem alloc failed", return);
+    for (i = 0; i < ibuf->data_len; i++) {
+        ret = snprintf(buf + buf_idx, buf_size - buf_idx, "%02X ", ibuf->buf[i]);
+        if ((ret < 0) || (ret >= buf_size - buf_idx)) {
+            free(buf);
+            ERR("snprintf failed");
+            return;
+        }
+        buf_idx += ret;
+    }
+    LOG(log_level, "%s[%u]:%s", name, ibuf->data_len, buf);
+    free(buf);
+}

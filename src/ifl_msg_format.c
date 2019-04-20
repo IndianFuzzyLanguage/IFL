@@ -142,6 +142,30 @@ IFL_MSG_FIELD *IFL_GetLengthField(IFL_MSG_FIELD *cur)
     return NULL;
 }
 
+/* @Description: Is field is of type L of LV or TLV parent
+ *
+ * @Return: Returns 1 in case of TRUE, or else 0
+ */
+int IFL_IsFieldTypeL(IFL_MSG_FIELD *field)
+{
+    IFL_MSG_FIELD *parent = field->tree.parent;
+    if (parent) {
+        switch (parent->field.type) {
+            case IFL_MSG_FIELD_TYPE_LV:
+                if (IFL_GetNthChild(parent, 1) == field) {
+                    return 1;
+                }
+                break;
+            case IFL_MSG_FIELD_TYPE_TLV:
+                if (IFL_GetNthChild(parent, 2) == field) {
+                    return 1;
+                }
+                break;
+        }
+    }
+    return 0;
+}
+
 char *IFL_GetFieldDefaultValStr(IFL_MSG_FIELD *field, char *out, uint16_t out_size)
 {
     int ret;
