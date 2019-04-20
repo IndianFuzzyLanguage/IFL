@@ -185,8 +185,16 @@ int IFL_FuzzGenDefaultValAndRand(IFL *ifl, IFL_BUF *ibuf)
  *
  * @Return: Returns 0 incase of success or else -1
  */
-int IFL_FuzzSampleBased(IFL *ifl, IFL_BUF *buf)
+int IFL_FuzzSampleBased(IFL *ifl, IFL_BUF *ibuf)
 {
+    if (ifl->sample_msg && ifl->sample_msg_len) {
+        if (IFL_UpdateBuf(ibuf, ifl->sample_msg, ifl->sample_msg_len)) {
+            goto err;
+        }
+        ifl->state.cur_mode_fuzz_finished = 1;
+        return 0;
+    }
+err:
     return -1;
 }
 

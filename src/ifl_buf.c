@@ -71,7 +71,7 @@ err:
 int IFL_UpdateBuf(IFL_BUF *ibuf, uint8_t *data, uint32_t data_len)
 {
     if ((ibuf->buf_size - ibuf->data_len) < data_len) {
-        if (IFL_ResizeBuf(ibuf, data_len)) {
+        if (IFL_ResizeBuf(ibuf, data_len - (ibuf->buf_size - ibuf->data_len))) {
             ERR("IFL buf Resize failed");
             return -1;
         }
