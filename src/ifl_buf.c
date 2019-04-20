@@ -36,9 +36,11 @@ err:
 int IFL_ResizeBuf(IFL_BUF *ibuf, uint32_t additional_size)
 {
     uint8_t *new_buf;
-    additional_size = (additional_size < IFL_MAX_BUF_SIZE) ?
-                            IFL_MAX_BUF_SIZE : additional_size;
     if ((ibuf) && (ibuf->buf)) {
+        additional_size = (additional_size < IFL_MIN_BUF_RESIZE) ?
+                                IFL_MIN_BUF_RESIZE : additional_size;
+        additional_size = (additional_size > IFL_MAX_BUF_SIZE) ?
+                                IFL_MAX_BUF_SIZE : additional_size;
         if ((ibuf->buf_size + additional_size) >= IFL_MAX_BUF_SIZE) {
             ERR("Reached max IFL buf size %u", ibuf->buf_size + additional_size);
             goto err;
@@ -69,7 +71,7 @@ err:
 int IFL_UpdateBuf(IFL_BUF *ibuf, uint8_t *data, uint32_t data_len)
 {
     if ((ibuf->buf_size - ibuf->data_len) < data_len) {
-        if (IFL_ResizeBuf(ibuf, data_len)) {
+        if (IFL_ResizeBuf(ibuf, data_len - (ibuf->buf_size - ibuf->data_len))) {
             ERR("IFL buf Resize failed");
             return -1;
         }

@@ -34,9 +34,9 @@ all: init_setup $(TARGET)
 
 $(LIB_EXPAT):
 	echo "expatlib is $(LIB_EXPAT)"
-	cd $(DEPENDENCY_DIR) && tar -zxvf $(EXPAT).tgz
-	cd $(EXPAT_DIR)/expat && ./buildconf.sh && ./configure
-	cd $(EXPAT_DIR)/expat/lib && make
+	cd $(DEPENDENCY_DIR) && tar -zxvf $(EXPAT).tgz > /dev/null
+	cd $(EXPAT_DIR)/expat && ./buildconf.sh && ./configure > /dev/null
+	cd $(EXPAT_DIR)/expat/lib && make > /dev/null
 
 init_setup: $(DEPENDENCY)
 	@mkdir -p $(OBJ_DIR)/$(SRC_DIR)
@@ -53,3 +53,6 @@ clean:
 	@$(RM) -rf $(OBJS)
 	@$(RM) -rf $(TARGET)
 	@$(RM) -rf $(OBJ_DIR) $(BIN_DIR)
+
+clobber:clean
+	cd $(EXPAT_DIR)/expat/lib && make clean > /dev/null

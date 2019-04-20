@@ -4,6 +4,7 @@
 #include "ifl_msg_format.h"
 #include "ifl_fuzzer.h"
 #include "ifl_util.h"
+#include "ifl_ctrl.h"
 
 IFL *IFL_Init(const char *xml_file_name, const char *xml_content)
 {
@@ -36,7 +37,7 @@ int IFL_GetFuzzedMsg(IFL *ifl, uint8_t **out, uint32_t *out_len)
 {
     *out = NULL;
     *out_len = 0;
-    if (!(ifl->state.flags & IFL_FUZZ_STATE_FINISHED)) {
+    if (!ifl->state.fuzz_finished) {
         return IFL_CraftFuzzedMsg(ifl, out, out_len);
     } else {
         DBG("Fuzzing for msg=%d finished", ifl->msg_id);
@@ -50,10 +51,10 @@ void IFL_FreeFuzzedMsg(uint8_t *ifl_msg)
     free(ifl_msg);
 }
 
-int IFL_Ctrl(IFL *ifl, uint32_t cmd, void *data, uint16_t data_len)
+int IFL_Ctrl(IFL *ifl, uint32_t cmd, void *data, uint32_t data_len)
 {
     IFL_CHK_ERR((!ifl), "Null pointer passed", return -1);
-    return 0;
+    return IFL_CtrlOp(ifl, cmd, data, data_len);
 }
 
 
