@@ -16,7 +16,9 @@ typedef enum ifl_fuzz_type_en {
 }IFL_FUZZ_TYPE;
 
 typedef struct ifl_fuzzer_sample_state_st {
-    uint32_t fuzzed_field_id;
+    IFL_BUF *created_msg;
+    uint32_t lfield_count;
+    uint32_t fuzzed_lfield;
     uint32_t send_sample_msg:1;
 }IFL_FUZZER_SAMPLE_MODE_STATE;
 
