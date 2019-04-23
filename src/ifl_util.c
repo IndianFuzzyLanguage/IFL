@@ -7,6 +7,9 @@
 #define IFL_NthH2N(buf, buf_size, value, idx) \
     buf[((buf_size) - 1) - (idx)] = (((value) >> ((idx) * 8)) & 0xFF)
 
+#define IFL_NthN2H(buf, buf_size, pvalue, idx) \
+    *pvalue |= (buf[((buf_size) - 1) - (idx)] & 0xFF) << ((idx) * 8)
+
 void IFL_Host2Network(uint8_t *buf, uint32_t buf_size, uint32_t value)
 {
     int i;
@@ -19,6 +22,21 @@ void IFL_Host2Network(uint8_t *buf, uint32_t buf_size, uint32_t value)
         IFL_NthH2N(buf, buf_size, value, i);
         TRACE("At idx=%d %u", i, buf[i]);
     }
+}
+
+void IFL_Network2Host(uint8_t *buf, uint32_t buf_size, uint32_t *value)
+{
+    int i;
+    if (buf_size > sizeof(uint32_t)) {
+        ERR("Buf size =%u greater than max=%zu", buf_size, sizeof(uint32_t));
+        return;
+    }
+    *value = 0;
+    for (i = 0; i < buf_size; i++) {
+        IFL_NthN2H(buf, buf_size, value, i);
+        TRACE("At idx=%d %u", i, buf[i]);
+    }
+    TRACE("Value =%u", *value);
 }
 
 void IFL_GenRandBytes(uint8_t *out, uint32_t size)

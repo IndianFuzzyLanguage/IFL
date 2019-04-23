@@ -17,6 +17,8 @@ typedef struct ifl_buf_st {
     uint32_t data_len;      /* Data filled size */
 }IFL_BUF;
 
+IFL_BUF *IFL_CreateBuf();
+
 int IFL_InitBuf(IFL_BUF *ibuf);
 
 int IFL_ResizeBuf(IFL_BUF *ibuf, uint32_t additional_size);
@@ -28,6 +30,12 @@ uint8_t *IFL_GetOffsettedBufPos(IFL_BUF *ibuf);
 uint8_t *IFL_SeekBuf(IFL_BUF *ibuf, int off);
 
 void IFL_FiniBuf(IFL_BUF *ibuf);
+
+void IFL_FreeBuf(IFL_BUF *ibuf);
+
+void IFL_PrintBuf(IFL_BUF *ibuf, const char *name, uint8_t log_level);
+
+IFL_BUF *IFL_DupBuf(IFL_BUF *ibuf);
 
 #ifdef __cplusplus
 }

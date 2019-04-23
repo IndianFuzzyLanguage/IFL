@@ -98,6 +98,8 @@ void IFL_FreeMsgFormat(IFL_MSG_FIELD *msg_format);
 
 IFL_FIELD_STACK *IFL_InitFieldStack(IFL_MSG_FIELD *msg);
 
+IFL_MSG_FIELD *IFL_PopFieldStack(IFL_FIELD_STACK *stack);
+
 void IFL_FiniFieldStack(IFL_FIELD_STACK *stack);
 
 IFL_MSG_FIELD *IFL_GetNextField(IFL_MSG_FIELD *msg, IFL_FIELD_STACK *stack);
@@ -105,6 +107,12 @@ IFL_MSG_FIELD *IFL_GetNextField(IFL_MSG_FIELD *msg, IFL_FIELD_STACK *stack);
 IFL_MSG_FIELD *IFL_GetNthChild(IFL_MSG_FIELD *parent, uint16_t child_num);
 
 IFL_MSG_FIELD *IFL_GetLengthField(IFL_MSG_FIELD *cur);
+
+int IFL_IsFieldTypeL(IFL_MSG_FIELD *field);
+
+int IFL_IsFieldTypeS(IFL_MSG_FIELD *field);
+
+int IFL_IsFieldTypeA(IFL_MSG_FIELD *field);
 
 #ifdef __cplusplus
 }

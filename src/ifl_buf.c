@@ -6,6 +6,15 @@
 #include "ifl_util.h"
 #include "ifl_buf.h"
 
+/* @Description: Allocates the IFL_BUF structure
+ *
+ * @Return: Returns valid pointer in case of success or else NULL
+ */
+IFL_BUF *IFL_CreateBuf()
+{
+    return (IFL_BUF *)calloc(1, sizeof(IFL_BUF));
+}
+
 /* @Description: Creates a buffer of default size and updates IFL_BUF with length.
  * This does not allocates memory for structure IFL_BUF.
  *
@@ -135,5 +144,63 @@ void IFL_FiniBuf(IFL_BUF *ibuf)
         free(ibuf->buf);
         memset(ibuf, 0, sizeof(IFL_BUF));
     }
+}
+
+/* @Description: Release the complete ibuf includes external structure
+ *
+ * @Return: void
+ */
+void IFL_FreeBuf(IFL_BUF *ibuf)
+{
+    if (ibuf) {
+        IFL_FiniBuf(ibuf);
+        free(ibuf);
+    }
+}
+
+/* @Description: Prints Buffer content.
+ *
+ * @Return: Void
+ */
+void IFL_PrintBuf(IFL_BUF *ibuf, const char *name, uint8_t log_level)
+{
+    uint32_t buf_size;
+    int buf_idx = 0;
+    char *buf;
+    int ret;
+    int i;
+
+    buf_size = (ibuf->data_len * 3) + 1;
+    buf = calloc(1, buf_size);
+    IFL_CHK_ERR((buf == NULL), "mem alloc failed", return);
+    for (i = 0; i < ibuf->data_len; i++) {
+        ret = snprintf(buf + buf_idx, buf_size - buf_idx, "%02X ", ibuf->buf[i]);
+        if ((ret < 0) || (ret >= buf_size - buf_idx)) {
+            free(buf);
+            ERR("snprintf failed");
+            return;
+        }
+        buf_idx += ret;
+    }
+    LOG(log_level, "%s[%u]:%s", name, ibuf->data_len, buf);
+    free(buf);
+}
+
+/* @Description: Duplicates the IFL_BUF
+ *
+ * @Return: Returns valid pointer in case of success or else NULL
+ */
+IFL_BUF *IFL_DupBuf(IFL_BUF *ibuf)
+{
+    IFL_BUF *dup_ibuf;
+    dup_ibuf = IFL_CreateBuf();
+    IFL_CHK_ERR((dup_ibuf == NULL), "Buf creation failed", return NULL);
+    IFL_CHK_ERR((IFL_InitBuf(dup_ibuf) == -1), "Buf init failed", goto err);
+    IFL_CHK_ERR((IFL_UpdateBuf(dup_ibuf, ibuf->buf, ibuf->data_len) == -1),
+                               "Buf Update failed", goto err);
+    return dup_ibuf;
+err:
+    IFL_FreeBuf(dup_ibuf);
+    return NULL;
 }
 

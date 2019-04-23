@@ -30,6 +30,7 @@ void IFL_Fini(IFL *ifl)
     IFL_CHK_ERR((!ifl), "Null pointer passed", return);
     DBG("IFL=%p fini", ifl);
     IFL_FreeMsgFormat(ifl->msg_format);
+    IFL_FreeBuf(ifl->state.sample_mode_state.created_msg);
     free(ifl);
 }
 
