@@ -7,7 +7,7 @@ char *g_log_level_str[IFL_LOG_LEVEL_MAX] = {"", "ERR", "INFO", "DBG", "TRACE"};
 
 IFL_LOG_CB g_log_cb = NULL;
 
-#define IFL_LOG_MAX_SIZE 256
+#define IFL_LOG_MAX_SIZE 512
 void IFL_LogFunc(uint8_t log_level, const char *format, ...)
 {
     char log_msg[IFL_LOG_MAX_SIZE] = {0};
@@ -21,7 +21,7 @@ void IFL_LogFunc(uint8_t log_level, const char *format, ...)
         if ((ret > 0) && (ret < (sizeof(log_msg) - 1))) {
             g_log_cb(log_level, log_msg);
         } else {
-            g_log_cb(IFL_LOG_ERR, "Insufficient log buffer\n");
+            g_log_cb(IFL_LOG_ERR, "[ERR] Insufficient log buffer\n");
         }
     }
 }
