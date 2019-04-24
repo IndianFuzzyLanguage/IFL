@@ -279,7 +279,6 @@ int IFL_ModifyCreatedMsgLField(IFL *ifl, IFL_BUF *ibuf)
         /* So we can utilize here */
         msg_off += cur->field.size;
     }
-    ret_val = 0;
 end:
     IFL_FiniFieldStack(stack);
     return ret_val;
