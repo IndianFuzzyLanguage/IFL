@@ -150,11 +150,12 @@ void IFL_FiniBuf(IFL_BUF *ibuf)
  *
  * @Return: void
  */
-void IFL_FreeBuf(IFL_BUF *ibuf)
+void IFL_FreeBuf(IFL_BUF **ibuf)
 {
-    if (ibuf) {
-        IFL_FiniBuf(ibuf);
-        free(ibuf);
+    if (*ibuf) {
+        IFL_FiniBuf(*ibuf);
+        free(*ibuf);
+        *ibuf = NULL;
     }
 }
 
@@ -200,7 +201,7 @@ IFL_BUF *IFL_DupBuf(IFL_BUF *ibuf)
                                "Buf Update failed", goto err);
     return dup_ibuf;
 err:
-    IFL_FreeBuf(dup_ibuf);
+    IFL_FreeBuf(&dup_ibuf);
     return NULL;
 }
 

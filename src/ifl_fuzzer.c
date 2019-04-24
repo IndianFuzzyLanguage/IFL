@@ -243,6 +243,8 @@ int IFL_ModifyCreatedMsgLField(IFL *ifl, IFL_BUF *ibuf)
     uint32_t msg_off = 0;
     uint32_t lfield_value;
 
+    IFL_CHK_ERR((ifl->state.sample_mode_state.created_msg == NULL),
+                "Recreated msg not available", return -1);
     if (IFL_UpdateBuf(ibuf, ifl->state.sample_mode_state.created_msg->buf,
                             ifl->state.sample_mode_state.created_msg->data_len)) {
         ERR("Update buf failed");
@@ -295,8 +297,10 @@ int IFL_FuzzSampleBased(IFL *ifl, IFL_BUF *ibuf)
     IFL_CHK_ERR((!ifl->sample_msg || !ifl->sample_msg_len), "Sample Msg not available", return -1);
     /* Sample based Fuzzed msg are created on below modes
      * 1. First send sample msg as it is
-     * 2. Recreate from sample msg based on config and start sending by modifying each length
-     * field */
+     * 2. Recreate from sample msg based on config and send
+     * 3. Keep the recreated msg on previous step as base msg and start fuzzing by modifying each
+     * length field alone
+     * 4. Modify the length field and also adjust the payload of the corresponding field */
     if (sample_mode_state->send_sample_msg == 0) {
         /* 1. First send sample msg as it is */
         if (IFL_UpdateBuf(ibuf, ifl->sample_msg, ifl->sample_msg_len)) {
@@ -304,29 +308,33 @@ int IFL_FuzzSampleBased(IFL *ifl, IFL_BUF *ibuf)
             goto err;
         }
         sample_mode_state->send_sample_msg = 1;
-    } else {
-        /* 2. Recreate from sample msg and send by modifying each length field */
-        if (sample_mode_state->created_msg == NULL) {
-            if (IFL_CreateMsgBasedOnSample(ifl, ibuf)) {
-                ERR("Sample Based fuzz failed");
-                goto err;
-            }
-            sample_mode_state->created_msg = IFL_DupBuf(ibuf);
-            sample_mode_state->fuzzed_lfield = 0;
-            TRACE("Recreated msg from sample, lfield count=%u", sample_mode_state->lfield_count);
+    } else if (sample_mode_state->send_recreated_msg == 0) {
+        /* 2. Recreate from sample msg based on sample and config and send */
+        IFL_FreeBuf(&sample_mode_state->created_msg);
+        if (IFL_CreateMsgBasedOnSample(ifl, ibuf)) {
+            ERR("Sample Based fuzz failed");
+            goto err;
+        }
+        sample_mode_state->created_msg = IFL_DupBuf(ibuf);
+        sample_mode_state->fuzzed_lfield = 0;
+        TRACE("Recreated msg from sample, lfield count=%u", sample_mode_state->lfield_count);
+        sample_mode_state->send_recreated_msg = 1;
+    } else if (sample_mode_state->fuzz_len_field_alone == 0) {
+        /* 3. Keep recreated msg as base and start modifying each length field and send */
+        sample_mode_state->fuzzed_lfield++;
+        if ((sample_mode_state->lfield_count == 0)
+                || (sample_mode_state->fuzzed_lfield > sample_mode_state->lfield_count))
+        {
+            TRACE("Fuzing len field alone finished");
+            sample_mode_state->fuzz_len_field_alone = 1;
         } else {
-            /* First time send recreated msg as it is */
-            /* Then later start modifying each length field one by one */
-            sample_mode_state->fuzzed_lfield++;
             if (IFL_ModifyCreatedMsgLField(ifl, ibuf)) {
                 ERR("Modify Created Msg L field failed");
                 goto err;
             }
         }
-        if ((sample_mode_state->lfield_count == 0)
-                || (sample_mode_state->fuzzed_lfield + 1 >= sample_mode_state->lfield_count)) {
-            ifl->state.cur_mode_fuzz_finished = 1;
-        }
+    } else {
+        ifl->state.cur_mode_fuzz_finished = 1;
     }
     return 0;
 err:
