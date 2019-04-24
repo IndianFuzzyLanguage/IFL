@@ -32,6 +32,7 @@ typedef struct ifl_fuzzer_state_st {
 
 typedef int (*IFL_FUZZ_GENERATOR)(IFL *ifl, IFL_BUF *ibuf);
 typedef struct ifl_fuzz_type_handler_st {
+    const char *type_str;
     IFL_FUZZ_TYPE fuzz_type;
     IFL_FUZZ_GENERATOR fuzz_generator;
 }IFL_FUZZ_TYPE_HANDLER;

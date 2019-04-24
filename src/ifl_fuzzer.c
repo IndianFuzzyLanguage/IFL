@@ -8,9 +8,12 @@
 #include "ifl_msg_format.h"
 
 IFL_FUZZ_TYPE_HANDLER g_fuzz_generator[IFL_FUZZ_TYPE_MAX] = {
-    {IFL_FUZZ_TYPE_DEFAULT_VAL_AND_ZERO, IFL_FuzzGenDefaultValAndZero},
-    {IFL_FUZZ_TYPE_DEFAULT_VAL_AND_RAND, IFL_FuzzGenDefaultValAndRand},
-    {IFL_FUZZ_TYPE_SAMPLE_BASED, IFL_FuzzSampleBased}
+    {"IFL_FUZZ_TYPE_DEFAULT_VAL_AND_ZERO", IFL_FUZZ_TYPE_DEFAULT_VAL_AND_ZERO,
+        IFL_FuzzGenDefaultValAndZero},
+    {"IFL_FUZZ_TYPE_DEFAULT_VAL_AND_RAND", IFL_FUZZ_TYPE_DEFAULT_VAL_AND_RAND,
+        IFL_FuzzGenDefaultValAndRand},
+    {"IFL_FUZZ_TYPE_DEFAULT_VAL_AND_RAND", IFL_FUZZ_TYPE_SAMPLE_BASED,
+        IFL_FuzzSampleBased}
 };
 
 /* @Description: This function indicates which all field requires size update based on 
@@ -205,6 +208,7 @@ int IFL_CreateMsgBasedOnSample(IFL *ifl, IFL_BUF *ibuf)
         if (!IFL_IsFieldTypeL(cur)) {
             TRACE("Updating Non L field=%s", cur->field.name);
             data_to_update = ifl->sample_msg + sample_msg_off;
+        } else {
             ifl->state.sample_mode_state.lfield_count++;
         }
         if (IFL_UpdateBuf(ibuf, data_to_update, cur->field.size)) {
@@ -310,6 +314,7 @@ int IFL_FuzzSampleBased(IFL *ifl, IFL_BUF *ibuf)
             }
             sample_mode_state->created_msg = IFL_DupBuf(ibuf);
             sample_mode_state->fuzzed_lfield = 0;
+            TRACE("Recreated msg from sample, lfield count=%u", sample_mode_state->lfield_count);
         } else {
             /* First time send recreated msg as it is */
             /* Then later start modifying each length field one by one */
@@ -347,6 +352,8 @@ int IFL_CraftFuzzedMsg(IFL *ifl, uint8_t **out, uint32_t *out_len)
     *out_len = ibuf.data_len;
     memset(&ibuf, 0, sizeof(ibuf));
     ifl->state.fuzzed_id++;
+    TRACE("Created Fuzzed msg count=%u of type=%s",
+            ifl->state.fuzzed_id, g_fuzz_generator[ifl->state.fuzzer_type].type_str);
     if (ifl->state.cur_mode_fuzz_finished) {
         ifl->state.fuzzer_type++;
         ifl->state.cur_mode_fuzz_finished = 0;
