@@ -270,7 +270,7 @@ int IFL_FuzzMsgLenField(IFL *ifl, IFL_BUF *ibuf, uint32_t flags)
             lfield_count++;
             if (lfield_count == ifl->state.sample_mode_state.fuzzed_lfield) {
                 IFL_Network2Host(ibuf->buf + msg_off, cur->field.size, &lfield_value);
-                if (val_to_reduce && lfield_value > val_to_reduce) {
+                if (val_to_reduce && lfield_value >= val_to_reduce) {
                     DBG("L field=%s[count=%u] value=%u will be reduced by %u",
                             cur->field.name, lfield_count, lfield_value, val_to_reduce);
                     lfield_value -= val_to_reduce;
@@ -278,6 +278,10 @@ int IFL_FuzzMsgLenField(IFL *ifl, IFL_BUF *ibuf, uint32_t flags)
                     /* Decided changes on L field done */
                     if (flags & FUZZ_LEN_FIELD_AND_ADJUST_PAY) {
                         /* Adjust the next field, by shifting the pending msg leftwards */
+                        /* TODO: Currently parent's size are not updated, as updating that
+                         * requires recreation of msg fields for next time fuzzing or some
+                         * other way of getting back original size. Currently this might
+                         * not needed also*/
                         end_of_payload = msg_off + cur->field.size + lfield_value;
                         TRACE("Adjust payload at offset=%d", end_of_payload);
                         memmove(ibuf->buf + end_of_payload,
