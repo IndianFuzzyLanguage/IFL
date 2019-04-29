@@ -31,7 +31,7 @@ uint8_t *IFL_SeekBuf(IFL_BUF *ibuf, int off);
 
 void IFL_FiniBuf(IFL_BUF *ibuf);
 
-void IFL_FreeBuf(IFL_BUF *ibuf);
+void IFL_FreeBuf(IFL_BUF **ibuf);
 
 void IFL_PrintBuf(IFL_BUF *ibuf, const char *name, uint8_t log_level);
 

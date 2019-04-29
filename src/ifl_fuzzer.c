@@ -7,10 +7,16 @@
 #include "ifl_buf.h"
 #include "ifl_msg_format.h"
 
+#define FUZZ_LEN_FIELD_ALONE            0x00000001UL
+#define FUZZ_LEN_FIELD_AND_ADJUST_PAY   0x00000002UL
+
 IFL_FUZZ_TYPE_HANDLER g_fuzz_generator[IFL_FUZZ_TYPE_MAX] = {
-    {IFL_FUZZ_TYPE_DEFAULT_VAL_AND_ZERO, IFL_FuzzGenDefaultValAndZero},
-    {IFL_FUZZ_TYPE_DEFAULT_VAL_AND_RAND, IFL_FuzzGenDefaultValAndRand},
-    {IFL_FUZZ_TYPE_SAMPLE_BASED, IFL_FuzzSampleBased}
+    {"IFL_FUZZ_TYPE_DEFAULT_VAL_AND_ZERO", IFL_FUZZ_TYPE_DEFAULT_VAL_AND_ZERO,
+        IFL_FuzzGenDefaultValAndZero},
+    {"IFL_FUZZ_TYPE_DEFAULT_VAL_AND_RAND", IFL_FUZZ_TYPE_DEFAULT_VAL_AND_RAND,
+        IFL_FuzzGenDefaultValAndRand},
+    {"IFL_FUZZ_TYPE_SAMPLE_BASED", IFL_FUZZ_TYPE_SAMPLE_BASED,
+        IFL_FuzzSampleBased}
 };
 
 /* @Description: This function indicates which all field requires size update based on 
@@ -205,6 +211,7 @@ int IFL_CreateMsgBasedOnSample(IFL *ifl, IFL_BUF *ibuf)
         if (!IFL_IsFieldTypeL(cur)) {
             TRACE("Updating Non L field=%s", cur->field.name);
             data_to_update = ifl->sample_msg + sample_msg_off;
+        } else {
             ifl->state.sample_mode_state.lfield_count++;
         }
         if (IFL_UpdateBuf(ibuf, data_to_update, cur->field.size)) {
@@ -225,25 +232,68 @@ err:
     return -1;
 }
 
+/* @Description: Updates complete content from src IFL buffer content to destination IFL buffer
+ *
+ * @Return: Returns 0 incase of success or else -1
+ */
+int IFL_UpdateMsg(IFL_BUF *dst_ibuf, IFL_BUF *src_ibuf)
+{
+    IFL_CHK_ERR(((dst_ibuf == NULL) || (src_ibuf == NULL)), "Null IFL buf", return -1);
+    IFL_CHK_ERR((IFL_UpdateBuf(dst_ibuf, src_ibuf->buf, src_ibuf->data_len) == -1),
+                "Update buf failed", return -1);
+    return 0;
+}
+
+/* @Description: Decrement the length field specified and also adjusted the payload if
+ * enabled in flags
+ *
+ * @Return: Void
+ */
+void IFL_FuzzMsgLenFieldDecrement(IFL *ifl, IFL_BUF *ibuf, uint32_t flags, uint32_t msg_off,
+                                  uint32_t val_to_reduce, IFL_MSG_FIELD *cur)
+{
+    uint32_t end_of_payload;
+    uint32_t lfield_value;
+
+    IFL_Network2Host(ibuf->buf + msg_off, cur->field.size, &lfield_value);
+    if (val_to_reduce && lfield_value >= val_to_reduce) {
+        DBG("L field=%s[count=%u] value=%u will be reduced by %u",
+                cur->field.name, ifl->state.sample_mode_state.fuzzed_lfield,
+                lfield_value, val_to_reduce);
+        lfield_value -= val_to_reduce;
+        IFL_Host2Network(ibuf->buf + msg_off, cur->field.size, lfield_value);
+        /* Decided changes on L field done */
+        if (flags & FUZZ_LEN_FIELD_AND_ADJUST_PAY) {
+            /* Adjust the next field, by shifting the pending msg leftwards */
+            /* TODO: Currently parent's size are not updated, as updating that
+             * requires recreation of msg fields for next time fuzzing or some
+             * other way of getting back original size. Currently this might
+             * not needed also*/
+            end_of_payload = msg_off + cur->field.size + lfield_value;
+            TRACE("Adjust payload at offset=%d", end_of_payload);
+            memmove(ibuf->buf + end_of_payload,
+                    ibuf->buf + (end_of_payload + val_to_reduce),
+                    ibuf->data_len - (end_of_payload + val_to_reduce));
+        }
+    }
+}
+
 /* @Description: Generates fuzzed msg based on sample msg gets fuzzed on
  * each L field
  *
  * @Return: Returns 0 incase of success or else -1
  */
-int IFL_ModifyCreatedMsgLField(IFL *ifl, IFL_BUF *ibuf)
+int IFL_FuzzMsgLenField(IFL *ifl, IFL_BUF *ibuf, uint32_t flags)
 {
     IFL_MSG_FIELD *cur;
     IFL_FIELD_STACK *stack;
     int ret_val = -1;
     uint32_t lfield_count = 0;
     uint32_t msg_off = 0;
-    uint32_t lfield_value;
+    uint32_t val_to_reduce = 1;
 
-    if (IFL_UpdateBuf(ibuf, ifl->state.sample_mode_state.created_msg->buf,
-                            ifl->state.sample_mode_state.created_msg->data_len)) {
-        ERR("Update buf failed");
-        return -1;
-    }
+    IFL_CHK_ERR((IFL_UpdateMsg(ibuf, ifl->state.sample_mode_state.created_msg) == -1),
+                "Copying created msg failed", return -1);
     stack = IFL_InitFieldStack(ifl->msg_format);
     IFL_CHK_ERR((!stack), "Field stack init failed", return -1);
     while ((cur = IFL_GetNextField(ifl->msg_format, stack))) {
@@ -258,14 +308,7 @@ int IFL_ModifyCreatedMsgLField(IFL *ifl, IFL_BUF *ibuf)
         if (IFL_IsFieldTypeL(cur)) {
             lfield_count++;
             if (lfield_count == ifl->state.sample_mode_state.fuzzed_lfield) {
-                IFL_Network2Host(ibuf->buf + msg_off, cur->field.size, &lfield_value);
-                DBG("L field=%s[count=%u] value=%u will be reduced by 1",
-                        cur->field.name, lfield_count, lfield_value);
-                if (lfield_value) {
-                    lfield_value--;
-                }
-                IFL_Host2Network(ibuf->buf + msg_off, cur->field.size, lfield_value);
-                /* Decided changes on L field done */
+                IFL_FuzzMsgLenFieldDecrement(ifl, ibuf, flags, msg_off, val_to_reduce, cur);
                 ret_val = 0;
                 goto end;
             }
@@ -275,7 +318,6 @@ int IFL_ModifyCreatedMsgLField(IFL *ifl, IFL_BUF *ibuf)
         /* So we can utilize here */
         msg_off += cur->field.size;
     }
-    ret_val = 0;
 end:
     IFL_FiniFieldStack(stack);
     return ret_val;
@@ -289,11 +331,15 @@ int IFL_FuzzSampleBased(IFL *ifl, IFL_BUF *ibuf)
 {
     IFL_FUZZER_SAMPLE_MODE_STATE *sample_mode_state;
     sample_mode_state = &ifl->state.sample_mode_state;
+    uint8_t fuzzing_finished;
+
     IFL_CHK_ERR((!ifl->sample_msg || !ifl->sample_msg_len), "Sample Msg not available", return -1);
     /* Sample based Fuzzed msg are created on below modes
      * 1. First send sample msg as it is
-     * 2. Recreate from sample msg based on config and start sending by modifying each length
-     * field */
+     * 2. Recreate from sample msg based on config and send
+     * 3. Keep the recreated msg on previous step as base msg and start fuzzing by modifying each
+     * length field alone
+     * 4. Modify the length field and also adjust the payload of the corresponding field */
     if (sample_mode_state->send_sample_msg == 0) {
         /* 1. First send sample msg as it is */
         if (IFL_UpdateBuf(ibuf, ifl->sample_msg, ifl->sample_msg_len)) {
@@ -301,28 +347,54 @@ int IFL_FuzzSampleBased(IFL *ifl, IFL_BUF *ibuf)
             goto err;
         }
         sample_mode_state->send_sample_msg = 1;
-    } else {
-        /* 2. Recreate from sample msg and send by modifying each length field */
-        if (sample_mode_state->created_msg == NULL) {
-            if (IFL_CreateMsgBasedOnSample(ifl, ibuf)) {
-                ERR("Sample Based fuzz failed");
-                goto err;
-            }
-            sample_mode_state->created_msg = IFL_DupBuf(ibuf);
-            sample_mode_state->fuzzed_lfield = 0;
-        } else {
-            /* First time send recreated msg as it is */
-            /* Then later start modifying each length field one by one */
-            sample_mode_state->fuzzed_lfield++;
-            if (IFL_ModifyCreatedMsgLField(ifl, ibuf)) {
-                ERR("Modify Created Msg L field failed");
-                goto err;
-            }
+    } else if (sample_mode_state->send_recreated_msg == 0) {
+        /* 2. Recreate from sample msg based on sample and config and send */
+        IFL_FreeBuf(&sample_mode_state->created_msg);
+        if (IFL_CreateMsgBasedOnSample(ifl, ibuf)) {
+            ERR("Sample Based fuzz failed");
+            goto err;
         }
-        if ((sample_mode_state->lfield_count == 0)
-                || (sample_mode_state->fuzzed_lfield + 1 >= sample_mode_state->lfield_count)) {
+        TRACE("Recreated msg from sample, lfield count=%u", sample_mode_state->lfield_count);
+        sample_mode_state->send_recreated_msg = 1;
+        if (sample_mode_state->lfield_count == 0) {
             ifl->state.cur_mode_fuzz_finished = 1;
         }
+        /* Dup IFL Buf and it will useful in upcoming len field fuzz operation */
+        sample_mode_state->created_msg = IFL_DupBuf(ibuf);
+        sample_mode_state->fuzzed_lfield = 0;
+    } else if (sample_mode_state->fuzz_len_field_alone == 0) {
+        /* 3. Keep recreated msg as base and start modifying each length field and send */
+        sample_mode_state->fuzzed_lfield++;
+        if (IFL_FuzzMsgLenField(ifl, ibuf, FUZZ_LEN_FIELD_ALONE)) {
+            ERR("Modify Created Msg L field failed");
+            goto err;
+        }
+        if (sample_mode_state->fuzzed_lfield + 1 > sample_mode_state->lfield_count) {
+            TRACE("Fuzing len field alone finished");
+            /* Reset fuzzed_lfield so that next time fuzzing can start from begining */
+            sample_mode_state->fuzzed_lfield = 0;
+            sample_mode_state->fuzz_len_field_alone = 1;
+        }
+    } else if (sample_mode_state->fuzz_len_field == 0) {
+        /* 4. Same as previous one, along with len field modifying adjust payload of the
+         * corresponding field and send */
+        sample_mode_state->fuzzed_lfield++;
+        if (IFL_FuzzMsgLenField(ifl, ibuf, FUZZ_LEN_FIELD_AND_ADJUST_PAY)) {
+            ERR("Modify Created Msg L field failed");
+            goto err;
+        }
+        if (sample_mode_state->fuzzed_lfield + 1 > sample_mode_state->lfield_count) {
+            TRACE("Fuzzing len field finished");
+            /* Reset fuzzed_lfield so that next time fuzzing can start from begining */
+            sample_mode_state->fuzzed_lfield = 0;
+            sample_mode_state->fuzz_len_field = 1;
+            fuzzing_finished = 1;
+        }
+    }
+
+    if (fuzzing_finished) {
+        TRACE("Sample based fuzz finished");
+        ifl->state.cur_mode_fuzz_finished = 1;
     }
     return 0;
 err:
@@ -347,6 +419,8 @@ int IFL_CraftFuzzedMsg(IFL *ifl, uint8_t **out, uint32_t *out_len)
     *out_len = ibuf.data_len;
     memset(&ibuf, 0, sizeof(ibuf));
     ifl->state.fuzzed_id++;
+    TRACE("Created Fuzzed msg count=%u of type=%s",
+            ifl->state.fuzzed_id, g_fuzz_generator[ifl->state.fuzzer_type].type_str);
     if (ifl->state.cur_mode_fuzz_finished) {
         ifl->state.fuzzer_type++;
         ifl->state.cur_mode_fuzz_finished = 0;
