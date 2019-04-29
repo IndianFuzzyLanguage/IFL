@@ -232,6 +232,52 @@ err:
     return -1;
 }
 
+/* @Description: Updates complete content from src IFL buffer content to destination IFL buffer
+ *
+ * @Return: Returns 0 incase of success or else -1
+ */
+int IFL_UpdateMsg(IFL_BUF *dst_ibuf, IFL_BUF *src_ibuf)
+{
+    IFL_CHK_ERR(((dst_ibuf == NULL) || (src_ibuf == NULL)), "Null IFL buf", return -1);
+    IFL_CHK_ERR((IFL_UpdateBuf(dst_ibuf, src_ibuf->buf, src_ibuf->data_len) == -1),
+                "Update buf failed", return -1);
+    return 0;
+}
+
+/* @Description: Decrement the length field specified and also adjusted the payload if
+ * enabled in flags
+ *
+ * @Return: Void
+ */
+void IFL_FuzzMsgLenFieldDecrement(IFL *ifl, IFL_BUF *ibuf, uint32_t flags, uint32_t msg_off,
+                                  uint32_t val_to_reduce, IFL_MSG_FIELD *cur)
+{
+    uint32_t end_of_payload;
+    uint32_t lfield_value;
+
+    IFL_Network2Host(ibuf->buf + msg_off, cur->field.size, &lfield_value);
+    if (val_to_reduce && lfield_value >= val_to_reduce) {
+        DBG("L field=%s[count=%u] value=%u will be reduced by %u",
+                cur->field.name, ifl->state.sample_mode_state.fuzzed_lfield,
+                lfield_value, val_to_reduce);
+        lfield_value -= val_to_reduce;
+        IFL_Host2Network(ibuf->buf + msg_off, cur->field.size, lfield_value);
+        /* Decided changes on L field done */
+        if (flags & FUZZ_LEN_FIELD_AND_ADJUST_PAY) {
+            /* Adjust the next field, by shifting the pending msg leftwards */
+            /* TODO: Currently parent's size are not updated, as updating that
+             * requires recreation of msg fields for next time fuzzing or some
+             * other way of getting back original size. Currently this might
+             * not needed also*/
+            end_of_payload = msg_off + cur->field.size + lfield_value;
+            TRACE("Adjust payload at offset=%d", end_of_payload);
+            memmove(ibuf->buf + end_of_payload,
+                    ibuf->buf + (end_of_payload + val_to_reduce),
+                    ibuf->data_len - (end_of_payload + val_to_reduce));
+        }
+    }
+}
+
 /* @Description: Generates fuzzed msg based on sample msg gets fuzzed on
  * each L field
  *
@@ -244,17 +290,10 @@ int IFL_FuzzMsgLenField(IFL *ifl, IFL_BUF *ibuf, uint32_t flags)
     int ret_val = -1;
     uint32_t lfield_count = 0;
     uint32_t msg_off = 0;
-    uint32_t lfield_value;
     uint32_t val_to_reduce = 1;
-    uint32_t end_of_payload;
 
-    IFL_CHK_ERR((ifl->state.sample_mode_state.created_msg == NULL),
-                "Recreated msg not available", return -1);
-    if (IFL_UpdateBuf(ibuf, ifl->state.sample_mode_state.created_msg->buf,
-                            ifl->state.sample_mode_state.created_msg->data_len)) {
-        ERR("Update buf failed");
-        return -1;
-    }
+    IFL_CHK_ERR((IFL_UpdateMsg(ibuf, ifl->state.sample_mode_state.created_msg) == -1),
+                "Copying created msg failed", return -1);
     stack = IFL_InitFieldStack(ifl->msg_format);
     IFL_CHK_ERR((!stack), "Field stack init failed", return -1);
     while ((cur = IFL_GetNextField(ifl->msg_format, stack))) {
@@ -269,26 +308,7 @@ int IFL_FuzzMsgLenField(IFL *ifl, IFL_BUF *ibuf, uint32_t flags)
         if (IFL_IsFieldTypeL(cur)) {
             lfield_count++;
             if (lfield_count == ifl->state.sample_mode_state.fuzzed_lfield) {
-                IFL_Network2Host(ibuf->buf + msg_off, cur->field.size, &lfield_value);
-                if (val_to_reduce && lfield_value >= val_to_reduce) {
-                    DBG("L field=%s[count=%u] value=%u will be reduced by %u",
-                            cur->field.name, lfield_count, lfield_value, val_to_reduce);
-                    lfield_value -= val_to_reduce;
-                    IFL_Host2Network(ibuf->buf + msg_off, cur->field.size, lfield_value);
-                    /* Decided changes on L field done */
-                    if (flags & FUZZ_LEN_FIELD_AND_ADJUST_PAY) {
-                        /* Adjust the next field, by shifting the pending msg leftwards */
-                        /* TODO: Currently parent's size are not updated, as updating that
-                         * requires recreation of msg fields for next time fuzzing or some
-                         * other way of getting back original size. Currently this might
-                         * not needed also*/
-                        end_of_payload = msg_off + cur->field.size + lfield_value;
-                        TRACE("Adjust payload at offset=%d", end_of_payload);
-                        memmove(ibuf->buf + end_of_payload,
-                                ibuf->buf + (end_of_payload + val_to_reduce),
-                                ibuf->data_len - (end_of_payload + val_to_reduce));
-                    }
-                }
+                IFL_FuzzMsgLenFieldDecrement(ifl, ibuf, flags, msg_off, val_to_reduce, cur);
                 ret_val = 0;
                 goto end;
             }
